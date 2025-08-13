@@ -3,6 +3,10 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <cmath>
+
+#include <systemd/sd-bus.h>
+#include <systemd/sd-device.h>
 
 using namespace std;
 
@@ -33,7 +37,40 @@ to_unit16t stringToUint16t(string s){
     return r;
 }
 
+struct vec2_u32
+{
+    double x;
+    double y;
+};
+
 int main(){
+
+    uint8_t size = 4;
+    vec2_u32 v[size] = {
+        { 0.0, 0.0 }, 
+        { 50, 32768 },
+        { 600, 55705 },
+        { 3355, 65535 },
+    };
+
+    double mX = 49;
+    double nowY = 0;
+    double m = 0;
+
+    for(int i = 1; i < size; i++){
+        if(mX > v[i-1].x && mX <= v[i].x){
+            cout << v[i-1].x << " | " << v[i].x << '\n';
+            m = (v[i].y - v[i-1].y)/(v[i].x - v[i-1].x);
+            cout << "m: " << m << '\n';
+            nowY = m*mX-v[i-1].x;
+            cout << "nowY: " << nowY << '\n';
+            break;
+        }
+        cout << "i" << i << '\n';
+    }
+
+    return OK;
+
     string line;
     uint8_t take = UINT8_MAX;
     uint16_t il_value = 0;// Illuminance sensor value
