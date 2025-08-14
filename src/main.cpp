@@ -44,19 +44,16 @@ struct vec2_u32
 };
 
 uint16_t cal(double mX){
-    uint8_t size = 5;
+    uint8_t size = 8;
     vec2_u32 v[size] = {
-        { 0.0, 12000 }, 
-        { 50, 20000 }, 
-        { 180, 40000 },
-        { 1400, 55000 },
-        { 3355, UINT16_MAX },
-
-        // { 0, 122 }, 
-        // { 30, 195 },
-        // { 50,  391 },
-        // { 114, 415},
-        // { 335, 647 },
+        { 0,  500   }, 
+        { 80,  3000   }, 
+        { 100,  4500  }, 
+        { 200,  5000  },   
+        { 300,  6000  },   
+        { 500,  7000  },
+        { 1400, 8500  },
+        { 3355, 10000 },
     };
 
     double nowY = 0;
@@ -83,13 +80,16 @@ uint16_t cal(double mX){
 int main(){
 
 
-    cout << cal(2) << '\n';
-    cout << cal(350) << '\n';
-    cout << cal(800) << '\n';
-    cout << cal(1000) << '\n';
-    cout << cal(2000) << '\n';
 
-    //return OK;
+    sd_bus *bus = nullptr;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *msg = nullptr;
+    int r = sd_bus_open_user(&bus);//get bus
+    if (r < 0) {//check bus
+        std::cerr << "Failed to connect to user bus: " << strerror(-r) << "\n";
+        return 1;
+    }
+    
 
 
     string line;
@@ -138,15 +138,22 @@ int main(){
             if(count_check >= number_of_check){
                 cout << "new!\n";
                 old_value = il_value;
-
-                ofstream br_file("/sys/class/backlight/amdgpu_bl1/brightness",
-                    std::ios::out | std::ios::trunc);
-                if(br_file.is_open()){
-                    br_file << cal(il_value);
-                    br_file.close();
-                }else{
-                    cout << "ERR OPEN SCBAB\n";
+                r = sd_bus_call_method(
+                    bus,
+                    "org.kde.Solid.PowerManagement",
+                    "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+                    "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+                    "setBrightnessSilent",
+                    &error, &msg,
+                    "i",
+                    cal(il_value)
+                );
+            
+            
+                if (r < 0) {
+                    std::cerr << "Error calling SetBrightness: " << strerror(-r) << "\n";
                 }
+
 
                 count_check = 0;
             }else {
