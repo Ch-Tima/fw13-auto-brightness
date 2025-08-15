@@ -44,19 +44,17 @@ struct vec2_u32
 };
 
 uint16_t cal(double mX){
-    uint8_t size = 5;
+    uint8_t size = 9;
     vec2_u32 v[size] = {
-        { 0.0, 12000 }, 
-        { 50, 20000 }, 
-        { 180, 40000 },
-        { 1400, 55000 },
-        { 3355, UINT16_MAX },
-
-        // { 0, 122 }, 
-        // { 30, 195 },
-        // { 50,  391 },
-        // { 114, 415},
-        // { 335, 647 },
+        { 0,    500   }, 
+        { 20,   3000  }, 
+        { 80,   4000  }, 
+        { 100,  5000  }, 
+        { 200,  5500  },   
+        { 300,  6000  },   
+        { 500,  7000  },
+        { 1400, 8500  },
+        { 3355, 10000 },
     };
 
     double nowY = 0;
@@ -82,15 +80,17 @@ uint16_t cal(double mX){
 
 int main(){
 
+    std::cout << "START: ABI" << std::endl;
 
-    cout << cal(2) << '\n';
-    cout << cal(350) << '\n';
-    cout << cal(800) << '\n';
-    cout << cal(1000) << '\n';
-    cout << cal(2000) << '\n';
-
-    //return OK;
-
+    sd_bus *bus = nullptr;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *msg = nullptr;
+    int r = sd_bus_open_user(&bus);//get bus
+    if (r < 0) {//check bus
+        std::cerr << "Failed to connect to user bus: " << strerror(-r) << "\n";
+        return 1;
+    }
+    
 
     string line;
     uint8_t take = UINT8_MAX;
@@ -99,30 +99,17 @@ int main(){
     uint8_t count_check = 0;
     uint16_t old_value = UINT16_MAX;// Illuminance sensor old value
     uint16_t il_value = 0;// Illuminance sensor value
-    uint16_t max_br = 0;// Maximum brightness value
 
-    ifstream max_br_file("/sys/class/backlight/amdgpu_bl1/max_brightness");
-    if(max_br_file.is_open()){
-        getline(max_br_file, line);
-        max_br_file.clear();
-        to_unit16t r = stringToUint16t(line);
-        if(r.status == OK)
-            max_br = r.value;
-        else {
-            cout << "ERROR: " << r.status << " set default value in max_br to" << UINT16_MAX << '\n';
-            max_br = UINT16_MAX;
-        }
-    }
-
-    cout << "max_brightness: " << max_br << '\n'; 
-
+    std::cout << "START main loop" << std::endl;
     while(take > 1){// Loop to periodically read illuminance sensor value
-        //cout << take << ")\n";
         ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
+        std::cout << "try open in_illuminance_raw" << std::endl;
         if(mfile.is_open()){
             getline(mfile, line);
             mfile.close();
+            std::cout << "read&close in_illuminance_raw" << std::endl;
             to_unit16t r = stringToUint16t(line);
+            std::cout << "stringToUint16t(X)" << std::endl;
             if(r.status == OK){
                 il_value = r.value;
                 cout << "illuminance value: " << il_value << '\n';// Print illuminance value
@@ -132,34 +119,37 @@ int main(){
                 il_value = 0;
             }
         }
-        else cout << "Unable to open file\n";
+        else std::cerr << "Unable to open file" << std::endl;;
 
         if(il_value > old_value+new_limit || il_value < old_value-new_limit){
             if(count_check >= number_of_check){
-                cout << "new!\n";
+                std::cout << "NEW VALUE" << std::endl;
                 old_value = il_value;
-
-                ofstream br_file("/sys/class/backlight/amdgpu_bl1/brightness",
-                    std::ios::out | std::ios::trunc);
-                if(br_file.is_open()){
-                    br_file << cal(il_value);
-                    br_file.close();
-                }else{
-                    cout << "ERR OPEN SCBAB\n";
+                r = sd_bus_call_method(
+                    bus,
+                    "org.kde.Solid.PowerManagement",
+                    "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+                    "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+                    "setBrightnessSilent",
+                    &error, &msg,
+                    "i",
+                    cal(il_value)
+                );
+            
+                if (r < 0) {
+                    std::cerr << "Error calling SetBrightness: " << strerror(-r) << "\n";
                 }
-
                 count_check = 0;
             }else {
                 count_check++;
             }
 
         }else { 
-            cout << "old!\n";
+            std::cout << "OLD VALUE" << std::endl;
         }
 
         take--;
-
-        cout << "\n";
+        std::cout << "TAKE:" << take << " COUNT_CHECKOUT:" << count_check << std::endl;
         this_thread::sleep_for(chrono::milliseconds(500));// Wait 0.5 second before next read
     }
     return OK;
