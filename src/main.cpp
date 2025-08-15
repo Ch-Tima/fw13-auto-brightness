@@ -99,22 +99,6 @@ int main(){
     uint8_t count_check = 0;
     uint16_t old_value = UINT16_MAX;// Illuminance sensor old value
     uint16_t il_value = 0;// Illuminance sensor value
-    uint16_t max_br = 0;// Maximum brightness value
-
-    ifstream max_br_file("/sys/class/backlight/amdgpu_bl1/max_brightness");
-    if(max_br_file.is_open()){
-        getline(max_br_file, line);
-        max_br_file.clear();
-        to_unit16t r = stringToUint16t(line);
-        if(r.status == OK)
-            max_br = r.value;
-        else {
-            cout << "ERROR: " << r.status << " set default value in max_br to" << UINT16_MAX << '\n';
-            max_br = UINT16_MAX;
-        }
-    }
-
-    cout << "max_brightness: " << max_br << '\n'; 
 
     while(take > 1){// Loop to periodically read illuminance sensor value
         //cout << take << ")\n";
