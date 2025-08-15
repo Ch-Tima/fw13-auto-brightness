@@ -44,12 +44,13 @@ struct vec2_u32
 };
 
 uint16_t cal(double mX){
-    uint8_t size = 8;
+    uint8_t size = 9;
     vec2_u32 v[size] = {
-        { 0,  500   }, 
-        { 80,  3000   }, 
-        { 100,  4500  }, 
-        { 200,  5000  },   
+        { 0,    500   }, 
+        { 20,   3000  }, 
+        { 80,   4000  }, 
+        { 100,  5000  }, 
+        { 200,  5500  },   
         { 300,  6000  },   
         { 500,  7000  },
         { 1400, 8500  },
@@ -79,7 +80,7 @@ uint16_t cal(double mX){
 
 int main(){
 
-
+    std::cout << "START: ABI" << std::endl;
 
     sd_bus *bus = nullptr;
     sd_bus_error error = SD_BUS_ERROR_NULL;
@@ -91,7 +92,6 @@ int main(){
     }
     
 
-
     string line;
     uint8_t take = UINT8_MAX;
     uint8_t new_limit = 50;
@@ -100,13 +100,16 @@ int main(){
     uint16_t old_value = UINT16_MAX;// Illuminance sensor old value
     uint16_t il_value = 0;// Illuminance sensor value
 
+    std::cout << "START main loop" << std::endl;
     while(take > 1){// Loop to periodically read illuminance sensor value
-        //cout << take << ")\n";
         ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
+        std::cout << "try open in_illuminance_raw" << std::endl;
         if(mfile.is_open()){
             getline(mfile, line);
             mfile.close();
+            std::cout << "read&close in_illuminance_raw" << std::endl;
             to_unit16t r = stringToUint16t(line);
+            std::cout << "stringToUint16t(X)" << std::endl;
             if(r.status == OK){
                 il_value = r.value;
                 cout << "illuminance value: " << il_value << '\n';// Print illuminance value
@@ -116,11 +119,11 @@ int main(){
                 il_value = 0;
             }
         }
-        else cout << "Unable to open file\n";
+        else std::cerr << "Unable to open file" << std::endl;;
 
         if(il_value > old_value+new_limit || il_value < old_value-new_limit){
             if(count_check >= number_of_check){
-                cout << "new!\n";
+                std::cout << "NEW VALUE" << std::endl;
                 old_value = il_value;
                 r = sd_bus_call_method(
                     bus,
@@ -133,24 +136,20 @@ int main(){
                     cal(il_value)
                 );
             
-            
                 if (r < 0) {
                     std::cerr << "Error calling SetBrightness: " << strerror(-r) << "\n";
                 }
-
-
                 count_check = 0;
             }else {
                 count_check++;
             }
 
         }else { 
-            cout << "old!\n";
+            std::cout << "OLD VALUE" << std::endl;
         }
 
         take--;
-
-        cout << "\n";
+        std::cout << "TAKE:" << take << " COUNT_CHECKOUT:" << count_check << std::endl;
         this_thread::sleep_for(chrono::milliseconds(500));// Wait 0.5 second before next read
     }
     return OK;

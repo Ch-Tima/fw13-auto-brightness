@@ -8,6 +8,7 @@ Restart=always
 RestartSec=30
 User=?U
 WorkingDirectory=?WD
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 StandardOutput=append:/var/log/autobrightness.log
 StandardError=append:/var/log/autobrightness_error.log
 
