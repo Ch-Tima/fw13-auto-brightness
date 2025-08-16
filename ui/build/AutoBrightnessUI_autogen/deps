@@ -45,6 +45,21 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/lib/cmake/Qt6/QtPublicToolHelpers.cmake \
 	/usr/lib/cmake/Qt6/QtPublicWalkLibsHelpers.cmake \
 	/usr/lib/cmake/Qt6/QtPublicWindowsHelpers.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsConfig.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsConfigVersion.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsDependencies.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsTargets-relwithdebinfo.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsTargets.cmake \
+	/usr/lib/cmake/Qt6Charts/Qt6ChartsVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateConfig.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateConfigVersion.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateDependencies.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateTargets.cmake \
+	/usr/lib/cmake/Qt6ChartsPrivate/Qt6ChartsPrivateVersionlessAliasTargets.cmake \
 	/usr/lib/cmake/Qt6Core/Qt6CoreAdditionalTargetInfo.cmake \
 	/usr/lib/cmake/Qt6Core/Qt6CoreConfig.cmake \
 	/usr/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake \
@@ -282,6 +297,36 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/lib/cmake/Qt6GuiTools/Qt6GuiToolsTargets-relwithdebinfo.cmake \
 	/usr/lib/cmake/Qt6GuiTools/Qt6GuiToolsTargets.cmake \
 	/usr/lib/cmake/Qt6GuiTools/Qt6GuiToolsVersionlessTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLConfig.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLConfigVersion.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLDependencies.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLTargets-relwithdebinfo.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGL/Qt6OpenGLVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateConfig.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateConfigVersion.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateDependencies.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGLPrivate/Qt6OpenGLPrivateVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsConfig.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsConfigVersion.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsDependencies.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsTargets-relwithdebinfo.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgets/Qt6OpenGLWidgetsVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateConfig.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateConfigVersion.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateDependencies.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateTargets.cmake \
+	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateVersionlessAliasTargets.cmake \
 	/usr/lib/cmake/Qt6Widgets/Qt6WidgetsAdditionalTargetInfo.cmake \
 	/usr/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake \
 	/usr/lib/cmake/Qt6Widgets/Qt6WidgetsConfigVersion.cmake \
