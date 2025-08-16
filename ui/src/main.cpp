@@ -11,14 +11,17 @@
 #include <QtCharts/QChart>
 #include <QtCharts/QLineSeries>
 #include <QtCharts/QChartView>
-#include <vector>
+#include <QTableWidget>
 
+#include <QGridLayout>
+
+#include <vector>
 #include <iostream>
 
 struct vec2_u32
 {
-    double x;
-    double y;
+    u_int16_t il;
+    uint16_t br;
 };
 
 int main(int argc, char *argv[]){
@@ -32,9 +35,8 @@ int main(int argc, char *argv[]){
 
     //BEGIN_MAIN_LAYOUT
 
-    QHBoxLayout *main_layout = new QHBoxLayout();
+    QGridLayout *main_layout = new QGridLayout();
     
-
     QFormLayout *form = new QFormLayout();
 
     QLineEdit *input_limit = new QLineEdit();
@@ -53,7 +55,8 @@ int main(int argc, char *argv[]){
     form->addRow("Number of checks:", input_check);
     form->addRow("Time interval:", input_time);
 
-    main_layout->addLayout(form);
+    main_layout->addLayout(form, 0, 0, 1, 1);
+    main_layout->setRowStretch(0, 0);  // форма без растяжки
 
 
     QLineSeries* series = new QLineSeries();
@@ -70,15 +73,37 @@ int main(int argc, char *argv[]){
     };
     
     for(vec2_u32 item : v){
-        series->append(item.y, item.x);
+        series->append(item.br, item.il);
     }
     
+    //QChart
     QChart *chart = new QChart();
     chart->addSeries(series);
     QChartView *chartView = new QChartView(chart);
-    main_layout->addWidget(chartView);
+    main_layout->addWidget(chartView, 0, 1, 2, 1);
+    
 
+    //QTableWidget
+    QTableWidget *table = new QTableWidget(0, 2);
+    table->setHorizontalHeaderLabels({"Value", "Brightness`%`"});
+    for (vec2_u32 item : v) {
+        int row = table->rowCount();
+        table->insertRow(row);
 
+        QLineEdit *edit1 = new QLineEdit();
+        edit1->setText(QString::number(item.il));
+        QLineEdit *edit2 = new QLineEdit();
+        edit2->setText(QString::number(item.br/100));
+        table->setCellWidget(row, 0, edit1);
+        table->setCellWidget(row, 1, edit2);
+    }
+
+    main_layout->addWidget(table, 1, 0, 2, 1);
+    main_layout->setRowStretch(1, 1);  // таблица растягивается
+
+    //Current il_value
+    QLabel *current_il_value = new QLabel("ilum:1475"); 
+    main_layout->addWidget(current_il_value, 2, 1, 1, 1);
     //END_MAIN_LAYOUT
 
 
