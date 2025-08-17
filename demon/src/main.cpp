@@ -5,6 +5,8 @@
 #include <chrono>
 #include <cmath>
 
+#include <future>
+
 #include <systemd/sd-bus.h>
 #include <systemd/sd-device.h>
 
@@ -78,53 +80,49 @@ uint16_t cal(double mX){
     return 0;
 }
 
-int main(){
+static std::atomic<uint8_t> take{UINT8_MAX};
+static std::atomic<uint8_t> new_limit{50};
+static std::atomic<uint8_t> number_of_check{3};
+static std::atomic<uint8_t> count_check{0};
+static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
+static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
 
-    std::cout << "START: ABI" << std::endl;
+static int method_get_illuminance(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error){    
+    std::cout << "[D-BUS] GetIlluminance called, value=" << il_value.load() << std::endl;
+    return sd_bus_reply_method_return(msg, "q", il_value.load());
+}
 
-    sd_bus *bus = nullptr;
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    sd_bus_message *msg = nullptr;
-    int r = sd_bus_open_user(&bus);//get bus
-    if (r < 0) {//check bus
-        std::cerr << "Failed to connect to user bus: " << strerror(-r) << "\n";
-        return 1;
-    }
-    
+static const sd_bus_vtable demo_vtable[] = {
+    SD_BUS_VTABLE_START(0),
+    SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
 
-    string line;
-    uint8_t take = UINT8_MAX;
-    uint8_t new_limit = 50;
-    uint8_t number_of_check = 3;
-    uint8_t count_check = 0;
-    uint16_t old_value = UINT16_MAX;// Illuminance sensor old value
-    uint16_t il_value = 0;// Illuminance sensor value
+    SD_BUS_VTABLE_END
+};
 
+void do_work(sd_bus *bus, sd_bus_message *msg, sd_bus_error error){
     std::cout << "START main loop" << std::endl;
+    string line;
+    int r;
     while(take > 1){// Loop to periodically read illuminance sensor value
+        
         ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
-        std::cout << "try open in_illuminance_raw" << std::endl;
         if(mfile.is_open()){
             getline(mfile, line);
             mfile.close();
-            std::cout << "read&close in_illuminance_raw" << std::endl;
             to_unit16t r = stringToUint16t(line);
-            std::cout << "stringToUint16t(X)" << std::endl;
             if(r.status == OK){
                 il_value = r.value;
-                cout << "illuminance value: " << il_value << '\n';// Print illuminance value
-                cout << "cal(il_value): " << cal(il_value) << '\n';
             }else {
-                cout << "ERROR: " << r.status << " set default value in il_value to 0" << '\n';
+                cerr << "ERROR: " << r.status << " set default value in il_value to 0" << '\n';
                 il_value = 0;
             }
         }
         else std::cerr << "Unable to open file" << std::endl;;
 
-        if(il_value > old_value+new_limit || il_value < old_value-new_limit){
-            if(count_check >= number_of_check){
-                std::cout << "NEW VALUE" << std::endl;
-                old_value = il_value;
+
+        if(il_value.load() > old_value.load()+new_limit.load() || il_value.load() < old_value.load()-new_limit.load()){
+            if(count_check.load() >= number_of_check.load()){
+                old_value = il_value.load();
                 r = sd_bus_call_method(
                     bus,
                     "org.kde.Solid.PowerManagement",
@@ -133,7 +131,7 @@ int main(){
                     "setBrightnessSilent",
                     &error, &msg,
                     "i",
-                    cal(il_value)
+                    cal(il_value.load())
                 );
             
                 if (r < 0) {
@@ -148,9 +146,60 @@ int main(){
             std::cout << "OLD VALUE" << std::endl;
         }
 
-        take--;
-        std::cout << "TAKE:" << take << " COUNT_CHECKOUT:" << count_check << std::endl;
+
+        take = take-1;
+
+        std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
+        std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;
         this_thread::sleep_for(chrono::milliseconds(500));// Wait 0.5 second before next read
     }
+}
+
+int main(){
+
+    std::cout << "START: ABI" << std::endl;
+
+    sd_bus *bus = nullptr;
+    sd_bus_slot *slot = nullptr;
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *msg = nullptr;
+    int r = sd_bus_open_user(&bus);//get bus
+    if (r < 0) {//check bus
+        std::cerr << "Failed to connect to user bus: " << strerror(-r) << "\n";
+        return 1;
+    }
+    
+    r = sd_bus_add_object_vtable(bus, &slot, 
+        "/com/ct/AutoBrightness", 
+        "com.ct.AutoBrightness", 
+        demo_vtable, nullptr);
+
+    if (r < 0) {
+        std::cerr << "Failed to add object: " << strerror(-r) << std::endl;
+        return 1;
+    }
+
+    r = sd_bus_request_name(bus, "com.ct.AutoBrightness", 0);
+    if (r < 0) {
+        std::cerr << "Failed to acquire service name: " << strerror(-r) << std::endl;
+        return 1;
+    }
+
+    auto w = std::async(std::launch::async, do_work, bus, msg, error);
+    
+    while(take > 1){
+        r = sd_bus_process(bus, nullptr);//проверяем наличие сообщений на D-Bus
+        if (r > 0) continue;//если есть сообщение, оно уже обработано >> сразу к следующей итерации
+        //ждем сообщения
+        r = sd_bus_wait(bus, (uint64_t)-1);
+        if (r < 0) { //проверяем наличие ошибок
+            std::cerr << "Failed to wait on bus: " << strerror(-r) << std::endl;
+            break;
+        }
+    }
+
+    sd_bus_slot_unref(slot);
+    sd_bus_unref(bus);
+
     return OK;
 }
