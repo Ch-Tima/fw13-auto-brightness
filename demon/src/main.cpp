@@ -87,9 +87,10 @@ static std::atomic<uint8_t> count_check{0};
 static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
 
-static int method_get_illuminance(sd_bus_message *msg, void *userdata, sd_bus_error *ret_error){    
-    std::cout << "[D-BUS] GetIlluminance called, value=" << il_value.load() << std::endl;
-    return sd_bus_reply_method_return(msg, "q", il_value.load());
+static int method_get_illuminance(sd_bus_message *msg, void *, sd_bus_error *) {
+    const uint16_t v = il_value.load();
+    std::cout << "[D-BUS] GetIlluminance called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
 
 static const sd_bus_vtable demo_vtable[] = {
@@ -99,10 +100,19 @@ static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_END
 };
 
-void do_work(sd_bus *bus, sd_bus_message *msg, sd_bus_error error){
+void do_work(){
     std::cout << "START main loop" << std::endl;
+    
     string line;
     int r;
+    sd_bus *client_bus = nullptr;
+
+    r = sd_bus_open_user(&client_bus);
+    if (r < 0) {
+        std::cerr << "Failed to open client bus: " << strerror(-r) << std::endl;
+        return;
+    }
+
     while(take > 1){// Loop to periodically read illuminance sensor value
         
         ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
@@ -120,39 +130,60 @@ void do_work(sd_bus *bus, sd_bus_message *msg, sd_bus_error error){
         else std::cerr << "Unable to open file" << std::endl;;
 
 
-        if(il_value.load() > old_value.load()+new_limit.load() || il_value.load() < old_value.load()-new_limit.load()){
-            if(count_check.load() >= number_of_check.load()){
-                old_value = il_value.load();
+        const uint16_t il = il_value.load();
+        const uint16_t old = old_value.load();
+        const uint8_t lim = new_limit.load();
+
+        if (il > old + lim || il < old - lim) {
+            if (count_check.load() >= number_of_check.load()) {
+                old_value = il;
+
+                // Готовим чистые error/reply перед каждым вызовом
+                sd_bus_error error = SD_BUS_ERROR_NULL;
+                sd_bus_message *reply = nullptr;
+
+                // используем client_bus!
                 r = sd_bus_call_method(
-                    bus,
+                    client_bus,
                     "org.kde.Solid.PowerManagement",
                     "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
                     "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
                     "setBrightnessSilent",
-                    &error, &msg,
+                    &error,
+                    &reply,
                     "i",
-                    cal(il_value.load())
+                    (int)cal(il)  // сигнатура "i" → int
                 );
-            
+
                 if (r < 0) {
-                    std::cerr << "Error calling SetBrightness: " << strerror(-r) << "\n";
+                    std::cerr << "Error calling setBrightnessSilent: "
+                              << strerror(-r) << " ("
+                              << (error.message ? error.message : "no error msg")
+                              << ")\n";
                 }
+
+                if (reply) {
+                    sd_bus_message_unref(reply);
+                    reply = nullptr;
+                }
+                sd_bus_error_free(&error);
+
                 count_check = 0;
-            }else {
+            } else {
                 count_check++;
             }
-
-        }else { 
+        } else {
             std::cout << "OLD VALUE" << std::endl;
         }
-
-
+        
         take = take-1;
 
         std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
         std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;
         this_thread::sleep_for(chrono::milliseconds(500));// Wait 0.5 second before next read
     }
+    sd_bus_unref(client_bus);// Закрываем клиентскую шину воркера
+
 }
 
 int main(){
@@ -185,7 +216,7 @@ int main(){
         return 1;
     }
 
-    auto w = std::async(std::launch::async, do_work, bus, msg, error);
+    auto w = std::async(std::launch::async, do_work);
     
     while(take > 1){
         r = sd_bus_process(bus, nullptr);//проверяем наличие сообщений на D-Bus
@@ -201,5 +232,6 @@ int main(){
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
 
+    w.wait();
     return OK;
 }

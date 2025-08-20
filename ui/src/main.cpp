@@ -15,8 +15,16 @@
 
 #include <QGridLayout>
 
+#include <QDBusInterface>
+#include <QDBusConnection>
+#include <QDBusReply>
+
+#include <QTimer>
+#include <QObject>
+
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 struct vec2_u32
 {
@@ -119,7 +127,29 @@ int main(int argc, char *argv[]){
 
     layout->addLayout(main_layout);
     layout->addLayout(bottom_btn_layout);
+    QDBusInterface interface(
+        "com.ct.AutoBrightness",    // service name (bus name, тот что в --dest)
+        "/com/ct/AutoBrightness",   // object path (тот что в dbus-send после dest)
+        "com.ct.AutoBrightness",    // interface (тот что в dbus-send после object path)
+        QDBusConnection::sessionBus()
+    );
 
+    
+    if(!interface.isValid()){
+        std::cout << "ERR" << std::endl;
+    }
+
+    QTimer *timer = new QTimer(&window);
+    QObject::connect(timer, &QTimer::timeout, [&]() {
+        QDBusReply<uint16_t> reply = interface.call("GetIlluminance");
+        if (reply.isValid()){
+            std::cout << reply.value() << std::endl;
+            current_il_value->setText("ilum:" + QString::number(reply.value()));
+        }else{
+            current_il_value->setText("NO SIGNAL!");
+        }
+    });
+    timer->start(1000);
 
     window.show();
     return app.exec();
