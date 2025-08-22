@@ -165,6 +165,14 @@ int main(int argc, char *argv[]){
         input_limit->setText("NO SIGNAL!");
     }
 
+
+    QDBusReply<uint8_t> replyValidationCount = interface.call("GetValidationCount");
+    if(replyValidationCount.isValid()){
+        input_check->setText(QString::number(replyValidationCount.value()));
+    }else{
+        input_check->setText("NO SIGNAL!");
+    }
+
     window.show();
     return app.exec();
 }

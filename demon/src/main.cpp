@@ -82,7 +82,7 @@ uint16_t cal(double mX){
 
 static std::atomic<uint8_t> take{UINT8_MAX};
 static std::atomic<uint16_t> changeThreshold{50};
-static std::atomic<uint8_t> number_of_check{3};
+static std::atomic<uint8_t> validationCount{3};
 static std::atomic<uint8_t> count_check{0};
 static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
@@ -100,6 +100,7 @@ static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
     std::cout << "[D-BUS] GetLoopDelayMs called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
+
 //порог чувствительности: насколько новое значение (il) должно отличаться от старого (old)
 static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
     const uint16_t v = changeThreshold.load();
@@ -107,11 +108,18 @@ static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error 
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
 
+static int method_get_validationCount(sd_bus_message *msg, void *, sd_bus_error *){
+    const uint8_t v = validationCount.load();
+    std::cout << "[D-BUS] GetValidationCount called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "y", v); // "y" = uint8
+}
+
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("GetChangeThreshold", "", "q", method_get_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("GetValidationCount", "", "y", method_get_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
 
@@ -151,7 +159,7 @@ void do_work(){
         const uint8_t thr = changeThreshold.load();
 
         if (il > old + thr || il < old - thr) {
-            if (count_check.load() >= number_of_check.load()) {
+            if (count_check.load() >= validationCount.load()) {
                 old_value = il;
 
                 // Готовим чистые error/reply перед каждым вызовом
