@@ -151,13 +151,19 @@ int main(int argc, char *argv[]){
     });
     timer->start(1000);
 
-    QDBusReply<uint16_t> reply = interface.call("GetLoopDelayMs");
-    if(reply.isValid()){
-        input_time->setText(QString::number(reply.value()));
+    QDBusReply<uint16_t> replyLoopDelayMs = interface.call("GetLoopDelayMs");
+    if(replyLoopDelayMs.isValid()){
+        input_time->setText(QString::number(replyLoopDelayMs.value()));
     }else{
         input_time->setText("NO SIGNAL!");
     }
 
+    QDBusReply<uint16_t> replyTHR = interface.call("GetChangeThreshold");
+    if(replyTHR.isValid()){
+        input_limit->setText(QString::number(replyTHR.value()));
+    }else{
+        input_limit->setText("NO SIGNAL!");
+    }
 
     window.show();
     return app.exec();

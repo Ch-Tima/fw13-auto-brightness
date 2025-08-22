@@ -81,7 +81,7 @@ uint16_t cal(double mX){
 }
 
 static std::atomic<uint8_t> take{UINT8_MAX};
-static std::atomic<uint8_t> new_limit{50};
+static std::atomic<uint16_t> changeThreshold{50};
 static std::atomic<uint8_t> number_of_check{3};
 static std::atomic<uint8_t> count_check{0};
 static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
@@ -100,11 +100,18 @@ static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
     std::cout << "[D-BUS] GetLoopDelayMs called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
+//порог чувствительности: насколько новое значение (il) должно отличаться от старого (old)
+static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
+    const uint16_t v = changeThreshold.load();
+    std::cout << "[D-BUS] GetChangeThreshold called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
+}
 
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("GetChangeThreshold", "", "q", method_get_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
 
@@ -141,9 +148,9 @@ void do_work(){
 
         const uint16_t il = il_value.load();
         const uint16_t old = old_value.load();
-        const uint8_t lim = new_limit.load();
+        const uint8_t thr = changeThreshold.load();
 
-        if (il > old + lim || il < old - lim) {
+        if (il > old + thr || il < old - thr) {
             if (count_check.load() >= number_of_check.load()) {
                 old_value = il;
 
