@@ -61,7 +61,7 @@ int main(int argc, char *argv[]){
 
     form->addRow("New limit:", input_limit);
     form->addRow("Number of checks:", input_check);
-    form->addRow("Time interval:", input_time);
+    form->addRow("LoopDelayMs:", input_time);
 
     main_layout->addLayout(form, 0, 0, 1, 1);
     main_layout->setRowStretch(0, 0);  // форма без растяжки
@@ -150,6 +150,14 @@ int main(int argc, char *argv[]){
         }
     });
     timer->start(1000);
+
+    QDBusReply<uint16_t> reply = interface.call("GetLoopDelayMs");
+    if(reply.isValid()){
+        input_time->setText(QString::number(reply.value()));
+    }else{
+        input_time->setText("NO SIGNAL!");
+    }
+
 
     window.show();
     return app.exec();

@@ -86,21 +86,30 @@ static std::atomic<uint8_t> number_of_check{3};
 static std::atomic<uint8_t> count_check{0};
 static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
+static std::atomic<uint16_t> loopDelayMs {500};
 
+//Возрощает текущие состояния il_value
 static int method_get_illuminance(sd_bus_message *msg, void *, sd_bus_error *) {
     const uint16_t v = il_value.load();
     std::cout << "[D-BUS] GetIlluminance called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
 
+static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
+    const uint16_t v = loopDelayMs.load();
+    std::cout << "[D-BUS] GetLoopDelayMs called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
+}
+
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
-
+    SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
 
 void do_work(){
+    //do_work работа над получением in_illuminance_raw и изменения яркости экрана 
     std::cout << "START main loop" << std::endl;
     
     string line;
@@ -180,7 +189,7 @@ void do_work(){
 
         std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
         std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;
-        this_thread::sleep_for(chrono::milliseconds(500));// Wait 0.5 second before next read
+        this_thread::sleep_for(chrono::milliseconds(loopDelayMs));// Wait 0.5 second before next read
     }
     sd_bus_unref(client_bus);// Закрываем клиентскую шину воркера
 
