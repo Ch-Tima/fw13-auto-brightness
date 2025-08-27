@@ -18,6 +18,8 @@
 #include <QDBusInterface>
 #include <QDBusConnection>
 #include <QDBusReply>
+#include <QDBusMetaType>
+#include <QDBusArgument>
 
 #include <QTimer>
 #include <QObject>
@@ -26,13 +28,39 @@
 #include <iostream>
 #include <chrono>
 
-struct vec2_u32
-{
-    u_int16_t il;
-    uint16_t br;
+
+struct vec2_u16 {
+    quint16 il;
+    quint16 br;
 };
 
+Q_DECLARE_METATYPE(vec2_u16)
+
+typedef QList<vec2_u16> Vec2List;
+Q_DECLARE_METATYPE(Vec2List)
+
+static std::vector<vec2_u16> v = {};
+
+QDBusArgument &operator<<(QDBusArgument &argument, const vec2_u16 &point)
+{
+    argument.beginStructure();
+    argument << point.il << point.br;
+    argument.endStructure();
+    return argument;
+}
+
+const QDBusArgument &operator>>(const QDBusArgument &argument, vec2_u16 &point)
+{
+    argument.beginStructure();
+    argument >> point.il >> point.br;
+    argument.endStructure();
+    return argument;
+}
+
 int main(int argc, char *argv[]){
+
+    qDBusRegisterMetaType<vec2_u16>();
+    qDBusRegisterMetaType<Vec2List>();
 
     QApplication app(argc, argv);
     QWidget window;
@@ -68,19 +96,7 @@ int main(int argc, char *argv[]){
 
 
     QLineSeries* series = new QLineSeries();
-    std::vector<vec2_u32> v = {
-        { 0,    500   }, 
-        { 20,   3000  }, 
-        { 80,   4000  }, 
-        { 100,  5000  }, 
-        { 200,  5500  },   
-        { 300,  6000  },   
-        { 500,  7000  },
-        { 1400, 8500  },
-        { 3355, 10000 }
-    };
-    
-    for(vec2_u32 item : v){
+    for(vec2_u16 item : v){
         series->append(item.br, item.il);
     }
     
@@ -94,17 +110,6 @@ int main(int argc, char *argv[]){
     //QTableWidget
     QTableWidget *table = new QTableWidget(0, 2);
     table->setHorizontalHeaderLabels({"Value", "Brightness`%`"});
-    for (vec2_u32 item : v) {
-        int row = table->rowCount();
-        table->insertRow(row);
-
-        QLineEdit *edit1 = new QLineEdit();
-        edit1->setText(QString::number(item.il));
-        QLineEdit *edit2 = new QLineEdit();
-        edit2->setText(QString::number(item.br/100));
-        table->setCellWidget(row, 0, edit1);
-        table->setCellWidget(row, 1, edit2);
-    }
 
     main_layout->addWidget(table, 1, 0, 2, 1);
     main_layout->setRowStretch(1, 1);  // таблица растягивается
@@ -127,6 +132,9 @@ int main(int argc, char *argv[]){
 
     layout->addLayout(main_layout);
     layout->addLayout(bottom_btn_layout);
+
+
+    //_!_LOAD_DATA_!_
     QDBusInterface interface(
         "com.ct.AutoBrightness",    // service name (bus name, тот что в --dest)
         "/com/ct/AutoBrightness",   // object path (тот что в dbus-send после dest)
@@ -171,6 +179,25 @@ int main(int argc, char *argv[]){
         input_check->setText(QString::number(replyValidationCount.value()));
     }else{
         input_check->setText("NO SIGNAL!");
+    }
+
+    QDBusReply<Vec2List> v2r = interface.call("GetVectorBrakePoints");
+    if(v2r.isValid()){
+        std::cout << "OK!" << std::endl;
+        for (vec2_u16 item : v2r.value()) {
+            int row = table->rowCount();
+            table->insertRow(row);
+    
+            QLineEdit *edit1 = new QLineEdit();
+            edit1->setText(QString::number(item.il));
+            QLineEdit *edit2 = new QLineEdit();
+            edit2->setText(QString::number(item.br/100));
+            table->setCellWidget(row, 0, edit1);
+            table->setCellWidget(row, 1, edit2);
+        }
+    }else{
+        std::cout << "NO SIGNAL_ARR!" << std::endl;
+        qDebug() << "NO SIGNAL_ARR!" << v2r.error().message();
     }
 
     window.show();
