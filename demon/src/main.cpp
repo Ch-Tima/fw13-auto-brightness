@@ -4,8 +4,9 @@
 #include <thread>
 #include <chrono>
 #include <cmath>
-
+#include <vector>
 #include <future>
+#include <mutex>
 
 #include <systemd/sd-bus.h>
 #include <systemd/sd-device.h>
@@ -39,46 +40,11 @@ to_unit16t stringToUint16t(string s){
     return r;
 }
 
-struct vec2_u32
+struct vec2_u16
 {
-    double x;
-    double y;
+    uint16_t x;
+    uint16_t y;
 };
-
-uint16_t cal(double mX){
-    uint8_t size = 9;
-    vec2_u32 v[size] = {
-        { 0,    500   }, 
-        { 20,   3000  }, 
-        { 80,   4000  }, 
-        { 100,  5000  }, 
-        { 200,  5500  },   
-        { 300,  6000  },   
-        { 500,  7000  },
-        { 1400, 8500  },
-        { 3355, 10000 },
-    };
-
-    double nowY = 0;
-    double m = 0;
-
-    for(int i = 1; i < size; i++){
-        if(mX > v[i-1].x && mX <= v[i].x){
-            //cout << v[i-1].x << " | " << v[i].x << '\n';
-            m = (v[i].y - v[i-1].y)/(v[i].x - v[i-1].x);
-            //cout << "m: " << m << '\n';
-            nowY = v[i-1].y + m * (mX - v[i-1].x);
-            //cout << "nowY: " << nowY << '\n';
-            return nowY;
-        }
-        //cout << "i" << i << '\n';
-    }
-
-    if (mX < v[0].x)  return static_cast<uint16_t>(v[0].y);
-    if (mX > v[size-1].x) return static_cast<uint16_t>(v[size-1].y);
-
-    return 0;
-}
 
 static std::atomic<uint8_t> take{UINT8_MAX};
 static std::atomic<uint16_t> changeThreshold{50};
@@ -87,6 +53,38 @@ static std::atomic<uint8_t> count_check{0};
 static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
 static std::atomic<uint16_t> loopDelayMs {500};
+
+static std::mutex brakePointsMutex;
+static std::vector<vec2_u16> brakePoints
+{
+    { 0,    500   }, 
+    { 20,   3000  }, 
+    { 80,   4000  }, 
+    { 100,  5000  }, 
+    { 200,  5500  },   
+    { 300,  6000  },   
+    { 500,  7000  },
+    { 1400, 8500  },
+    { 3355, 10000 },
+};
+
+uint16_t cal(double mX){
+    std::lock_guard<std::mutex> lock(brakePointsMutex);
+    double nowY = 0;
+    double m = 0;
+    for(int i = 1; i < brakePoints.size(); i++){
+        if(mX > brakePoints[i-1].x && mX <= brakePoints[i].x){
+            m = (brakePoints[i].y - brakePoints[i-1].y)/(brakePoints[i].x - brakePoints[i-1].x);
+            nowY = brakePoints[i-1].y + m * (mX - brakePoints[i-1].x);
+            return static_cast<uint16_t>(nowY);
+        }
+    }
+
+    if (mX < brakePoints[0].x)  return static_cast<uint16_t>(brakePoints[0].y);
+    if (mX > brakePoints[brakePoints.size()-1].x) return static_cast<uint16_t>(brakePoints[brakePoints.size()-1].y);
+
+    return 0;
+}
 
 //Возрощает текущие состояния il_value
 static int method_get_illuminance(sd_bus_message *msg, void *, sd_bus_error *) {
@@ -114,12 +112,36 @@ static int method_get_validationCount(sd_bus_message *msg, void *, sd_bus_error 
     return sd_bus_reply_method_return(msg, "y", v); // "y" = uint8
 }
 
+static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
+    std::lock_guard<std::mutex> lock(brakePointsMutex);
+    std::cout << "[D-BUS] GetVectorBrakePoints called, value=" << brakePoints.size() << std::endl;
+    sd_bus_message *reply = nullptr;//Создаём указатель под сообщение-ответ (reply). Пока nullptr.
+    int r = sd_bus_message_new_method_return(msg, &reply);//Создаём новое сообщение-ответ на входное msg.
+    if (r < 0) return r;//создался? 
+
+    r = sd_bus_message_open_container(reply, 'a', "(qq)");//окрыть
+    if (r < 0) return r;
+
+    for (const vec2_u16 &p : brakePoints) {//писать
+        r = sd_bus_message_append(reply, "(qq)", p.x, p.y);
+        if (r < 0) return r;
+    }
+
+    r = sd_bus_message_close_container(reply);//закрыть контейнер
+    if (r < 0) return r;
+
+    r = sd_bus_send(NULL, reply, NULL);//отправка ответа (reply)
+    sd_bus_message_unref(reply);//освобождаем память
+    return r;//0 = успех, <0 = ошибка
+}
+
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
     SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("GetChangeThreshold", "", "q", method_get_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("GetValidationCount", "", "y", method_get_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("GetVectorBrakePoints", "", "a(qq)", method_get_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
 
