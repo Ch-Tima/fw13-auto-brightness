@@ -290,6 +290,7 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/include/qt6/QtCharts/QChartView \
 	/usr/include/qt6/QtCharts/QLegend \
 	/usr/include/qt6/QtCharts/QLineSeries \
+	/usr/include/qt6/QtCharts/QValueAxis \
 	/usr/include/qt6/QtCharts/QXYSeries \
 	/usr/include/qt6/QtCharts/qabstractaxis.h \
 	/usr/include/qt6/QtCharts/qabstractseries.h \
@@ -300,6 +301,7 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/include/qt6/QtCharts/qlineseries.h \
 	/usr/include/qt6/QtCharts/qtcharts-config.h \
 	/usr/include/qt6/QtCharts/qtchartsexports.h \
+	/usr/include/qt6/QtCharts/qvalueaxis.h \
 	/usr/include/qt6/QtCharts/qxyseries.h \
 	/usr/include/qt6/QtCore/QList \
 	/usr/include/qt6/QtCore/QMargins \

@@ -42,6 +42,7 @@ MainView::MainView(QWidget *parent){
     });
 
     connect(dbus, &DbusClient::pointsReceived, this, [&](const Vec2List &points){
+        series->clear();
         if (points.isEmpty()) {
             qDebug() << "Нет данных от DBus";
         } else {
@@ -56,9 +57,10 @@ MainView::MainView(QWidget *parent){
                 edit2->setText(QString::number(item.br/100));
                 table->setCellWidget(row, 0, edit1);
                 table->setCellWidget(row, 1, edit2);
+                series->append(item.br/100, item.il);
             }
+            chart->update();
         }
-
     });
 
     dbus->requestPoints();
@@ -66,13 +68,6 @@ MainView::MainView(QWidget *parent){
     dbus->requestTHR();
     dbus->requestLoopDelayMs();
 }
-
-int MainView::updateChart(){
-    // for(vec2_u16 item : v){
-    //     series->append(item.br, item.il);
-    // }
-    return 0;
-};
 
 int MainView::init(){
     setWindowTitle("Auto Brightness Settings");
@@ -112,6 +107,18 @@ int MainView::init(){
     chart = new QChart();
     series = new QLineSeries();
     chart->addSeries(series);
+    // создаём оси
+    QValueAxis *axisX = new QValueAxis();
+    QValueAxis *axisY = new QValueAxis();
+    axisX->setTitleText("Brightness %");
+    axisY->setTitleText("Illuminance");
+    axisX->setRange(0, 100);
+    axisY->setRange(0, 4059);
+    chart->addAxis(axisX, Qt::AlignBottom);
+    chart->addAxis(axisY, Qt::AlignLeft);
+    series->attachAxis(axisX);
+    series->attachAxis(axisY);
+    series->setPointsVisible(true);
     chartView = new QChartView(chart);
     main_layout->addWidget(chartView, 0, 1, 2, 1);
 

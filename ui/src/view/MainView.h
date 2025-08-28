@@ -23,6 +23,7 @@
 #include <QDBusMetaType>
 #include <QList>
 #include <QTimer>
+#include <QValueAxis>
 
 #include "dbus/DbusClient.h"
 
