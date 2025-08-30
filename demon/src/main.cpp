@@ -99,6 +99,19 @@ static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
 
+static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
+    uint16_t value;
+    int r = sd_bus_message_read(msg, "q", &value);
+    if(r < 0){
+        return r;
+    }
+
+    std::cout << "[D-BUS] SetLoopDelayMs called, value=" << value << std::endl;
+    loopDelayMs = value;
+
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
 //порог чувствительности: насколько новое значение (il) должно отличаться от старого (old)
 static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
     const uint16_t v = changeThreshold.load();
@@ -106,10 +119,32 @@ static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error 
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
 
+static int method_set_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
+    uint16_t value;
+    int r = sd_bus_message_read(msg, "q", &value);
+    if(r < 0){
+        return r;
+    }
+    std::cout << "[D-BUS] SetChangeThreshold called, value=" << value << std::endl;
+    changeThreshold = value;
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
 static int method_get_validationCount(sd_bus_message *msg, void *, sd_bus_error *){
     const uint8_t v = validationCount.load();
     std::cout << "[D-BUS] GetValidationCount called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "y", v); // "y" = uint8
+}
+
+static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error *){
+    uint8_t v;
+    int r = sd_bus_message_read(msg, "y", &v);
+    if(r < 0){
+        return r;
+    }
+    std::cout << "[D-BUS] SetValidationCount called, value=" << v << std::endl;
+    validationCount = v;
+    return sd_bus_reply_method_return(msg, NULL);
 }
 
 static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
@@ -137,10 +172,18 @@ static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
 
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
+    //GetIlluminance
     SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set LoopDelayMs
     SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetLoopDelayMs", "q", "", method_set_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set ChangeThreshold
     SD_BUS_METHOD("GetChangeThreshold", "", "q", method_get_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetChangeThreshold", "q", "", method_set_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set ValidationCount
     SD_BUS_METHOD("GetValidationCount", "", "y", method_get_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetValidationCount", "y", "", method_set_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
+    //getVectorBrakePoints
     SD_BUS_METHOD("GetVectorBrakePoints", "", "a(qq)", method_get_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
