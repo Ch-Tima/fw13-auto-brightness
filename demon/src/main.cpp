@@ -4,6 +4,9 @@
 #include <thread>
 #include <chrono>
 #include <cmath>
+#include <vector>
+#include <future>
+#include <mutex>
 
 #include <systemd/sd-bus.h>
 #include <systemd/sd-device.h>
@@ -37,45 +40,267 @@ to_unit16t stringToUint16t(string s){
     return r;
 }
 
-struct vec2_u32
+struct vec2_u16
 {
-    double x;
-    double y;
+    uint16_t x;
+    uint16_t y;
+};
+
+static std::atomic<uint8_t> take{UINT8_MAX};
+static std::atomic<uint16_t> changeThreshold{50};
+static std::atomic<uint8_t> validationCount{3};
+static std::atomic<uint8_t> count_check{0};
+static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
+static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
+static std::atomic<uint16_t> loopDelayMs {500};
+
+static std::mutex brakePointsMutex;
+static std::vector<vec2_u16> brakePoints
+{
+    { 0,    500   }, 
+    { 20,   3000  }, 
+    { 80,   4000  }, 
+    { 100,  5000  }, 
+    { 200,  5500  },   
+    { 300,  6000  },   
+    { 500,  7000  },
+    { 1400, 8500  },
+    { 3355, 10000 },
 };
 
 uint16_t cal(double mX){
-    uint8_t size = 9;
-    vec2_u32 v[size] = {
-        { 0,    500   }, 
-        { 20,   3000  }, 
-        { 80,   4000  }, 
-        { 100,  5000  }, 
-        { 200,  5500  },   
-        { 300,  6000  },   
-        { 500,  7000  },
-        { 1400, 8500  },
-        { 3355, 10000 },
-    };
-
+    std::lock_guard<std::mutex> lock(brakePointsMutex);
     double nowY = 0;
     double m = 0;
-
-    for(int i = 1; i < size; i++){
-        if(mX > v[i-1].x && mX <= v[i].x){
-            //cout << v[i-1].x << " | " << v[i].x << '\n';
-            m = (v[i].y - v[i-1].y)/(v[i].x - v[i-1].x);
-            //cout << "m: " << m << '\n';
-            nowY = v[i-1].y + m * (mX - v[i-1].x);
-            //cout << "nowY: " << nowY << '\n';
-            return nowY;
+    for(int i = 1; i < brakePoints.size(); i++){
+        if(mX > brakePoints[i-1].x && mX <= brakePoints[i].x){
+            m = (brakePoints[i].y - brakePoints[i-1].y)/(brakePoints[i].x - brakePoints[i-1].x);
+            nowY = brakePoints[i-1].y + m * (mX - brakePoints[i-1].x);
+            return static_cast<uint16_t>(nowY);
         }
-        //cout << "i" << i << '\n';
     }
 
-    if (mX < v[0].x)  return static_cast<uint16_t>(v[0].y);
-    if (mX > v[size-1].x) return static_cast<uint16_t>(v[size-1].y);
+    if (mX < brakePoints[0].x)  return static_cast<uint16_t>(brakePoints[0].y);
+    if (mX > brakePoints[brakePoints.size()-1].x) return static_cast<uint16_t>(brakePoints[brakePoints.size()-1].y);
 
     return 0;
+}
+
+//Возрощает текущие состояния il_value
+static int method_get_illuminance(sd_bus_message *msg, void *, sd_bus_error *) {
+    const uint16_t v = il_value.load();
+    std::cout << "[D-BUS] GetIlluminance called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
+}
+
+static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
+    const uint16_t v = loopDelayMs.load();
+    std::cout << "[D-BUS] GetLoopDelayMs called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
+}
+
+static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
+    uint16_t value;
+    int r = sd_bus_message_read(msg, "q", &value);
+    if(r < 0){
+        return r;
+    }
+
+    std::cout << "[D-BUS] SetLoopDelayMs called, value=" << value << std::endl;
+    loopDelayMs = value;
+
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
+//порог чувствительности: насколько новое значение (il) должно отличаться от старого (old)
+static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
+    const uint16_t v = changeThreshold.load();
+    std::cout << "[D-BUS] GetChangeThreshold called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
+}
+
+static int method_set_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
+    uint16_t value;
+    int r = sd_bus_message_read(msg, "q", &value);
+    if(r < 0){
+        return r;
+    }
+    std::cout << "[D-BUS] SetChangeThreshold called, value=" << value << std::endl;
+    changeThreshold = value;
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
+static int method_get_validationCount(sd_bus_message *msg, void *, sd_bus_error *){
+    const uint8_t v = validationCount.load();
+    std::cout << "[D-BUS] GetValidationCount called, value=" << v << std::endl;
+    return sd_bus_reply_method_return(msg, "y", v); // "y" = uint8
+}
+
+static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error *){
+    uint8_t v;
+    int r = sd_bus_message_read(msg, "y", &v);
+    if(r < 0){
+        return r;
+    }
+    std::cout << "[D-BUS] SetValidationCount called, value=" << v << std::endl;
+    validationCount = v;
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
+static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
+    std::lock_guard<std::mutex> lock(brakePointsMutex);
+    std::cout << "[D-BUS] GetVectorBrakePoints called, value=" << brakePoints.size() << std::endl;
+    sd_bus_message *reply = nullptr;//Создаём указатель под сообщение-ответ (reply). Пока nullptr.
+    int r = sd_bus_message_new_method_return(msg, &reply);//Создаём новое сообщение-ответ на входное msg.
+    if (r < 0) return r;//создался? 
+
+    r = sd_bus_message_open_container(reply, 'a', "(qq)");//окрыть
+    if (r < 0) return r;
+
+    for (const vec2_u16 &p : brakePoints) {//писать
+        r = sd_bus_message_append(reply, "(qq)", p.x, p.y);
+        if (r < 0) return r;
+    }
+
+    r = sd_bus_message_close_container(reply);//закрыть контейнер
+    if (r < 0) return r;
+
+    r = sd_bus_send(NULL, reply, NULL);//отправка ответа (reply)
+    sd_bus_message_unref(reply);//освобождаем память
+    return r;//0 = успех, <0 = ошибка
+}
+
+static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
+
+    std::vector<vec2_u16> value = {};
+    int r = sd_bus_message_enter_container(msg, 'a', "(qq)");
+    if(r < 0){
+        std::cout << "[D-BUS] SetVectorBrakePoints > enter_container failed." << std::endl;
+        return r;
+    }
+
+    while(sd_bus_message_at_end(msg, 0) == 0){
+        vec2_u16 point;
+        sd_bus_message_read(msg, "(qq)", &point.x, &point.y);
+        value.push_back(point);
+    }
+
+    sd_bus_message_close_container(msg);
+
+    std::cout << "[D-BUS] SetVectorBrakePoints called, value.size=" << value.size() << std::endl;
+    
+    {
+        std::lock_guard<std::mutex> lock(brakePointsMutex);
+        brakePoints = value;
+    }
+
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
+static const sd_bus_vtable demo_vtable[] = {
+    SD_BUS_VTABLE_START(0),
+    //GetIlluminance
+    SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set LoopDelayMs
+    SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetLoopDelayMs", "q", "", method_set_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set ChangeThreshold
+    SD_BUS_METHOD("GetChangeThreshold", "", "q", method_get_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetChangeThreshold", "q", "", method_set_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set ValidationCount
+    SD_BUS_METHOD("GetValidationCount", "", "y", method_get_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetValidationCount", "y", "", method_set_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
+    //get|set VectorBrakePoints
+    SD_BUS_METHOD("GetVectorBrakePoints", "", "a(qq)", method_get_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetVectorBrakePoints", "a(qq)", "", method_set_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_VTABLE_END
+};
+
+void do_work(){
+    //do_work работа над получением in_illuminance_raw и изменения яркости экрана 
+    std::cout << "START main loop" << std::endl;
+    
+    string line;
+    int r;
+    sd_bus *client_bus = nullptr;
+
+    r = sd_bus_open_user(&client_bus);
+    if (r < 0) {
+        std::cerr << "Failed to open client bus: " << strerror(-r) << std::endl;
+        return;
+    }
+
+    while(take > 1){// Loop to periodically read illuminance sensor value
+        
+        ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
+        if(mfile.is_open()){
+            getline(mfile, line);
+            mfile.close();
+            to_unit16t r = stringToUint16t(line);
+            if(r.status == OK){
+                il_value = r.value;
+            }else {
+                cerr << "ERROR: " << r.status << " set default value in il_value to 0" << '\n';
+                il_value = 0;
+            }
+        }
+        else std::cerr << "Unable to open file" << std::endl;;
+
+
+        const uint16_t il = il_value.load();
+        const uint16_t old = old_value.load();
+        const uint8_t thr = changeThreshold.load();
+
+        if (il > old + thr || il < old - thr) {
+            if (count_check.load() >= validationCount.load()) {
+                old_value = il;
+
+                // Готовим чистые error/reply перед каждым вызовом
+                sd_bus_error error = SD_BUS_ERROR_NULL;
+                sd_bus_message *reply = nullptr;
+
+                // используем client_bus!
+                r = sd_bus_call_method(
+                    client_bus,
+                    "org.kde.Solid.PowerManagement",
+                    "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+                    "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+                    "setBrightnessSilent",
+                    &error,
+                    &reply,
+                    "i",
+                    (int)cal(il)  // сигнатура "i" → int
+                );
+
+                if (r < 0) {
+                    std::cerr << "Error calling setBrightnessSilent: "
+                              << strerror(-r) << " ("
+                              << (error.message ? error.message : "no error msg")
+                              << ")\n";
+                }
+
+                if (reply) {
+                    sd_bus_message_unref(reply);
+                    reply = nullptr;
+                }
+                sd_bus_error_free(&error);
+
+                count_check = 0;
+            } else {
+                count_check++;
+            }
+        } else {
+            std::cout << "OLD VALUE" << std::endl;
+        }
+        
+        take = take-1;
+
+        std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
+        std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;
+        this_thread::sleep_for(chrono::milliseconds(loopDelayMs));// Wait 0.5 second before next read
+    }
+    sd_bus_unref(client_bus);// Закрываем клиентскую шину воркера
+
 }
 
 int main(){
@@ -83,6 +308,7 @@ int main(){
     std::cout << "START: ABI" << std::endl;
 
     sd_bus *bus = nullptr;
+    sd_bus_slot *slot = nullptr;
     sd_bus_error error = SD_BUS_ERROR_NULL;
     sd_bus_message *msg = nullptr;
     int r = sd_bus_open_user(&bus);//get bus
@@ -91,66 +317,38 @@ int main(){
         return 1;
     }
     
+    r = sd_bus_add_object_vtable(bus, &slot, 
+        "/com/ct/AutoBrightness", 
+        "com.ct.AutoBrightness", 
+        demo_vtable, nullptr);
 
-    string line;
-    uint8_t take = UINT8_MAX;
-    uint8_t new_limit = 50;
-    uint8_t number_of_check = 3;
-    uint8_t count_check = 0;
-    uint16_t old_value = UINT16_MAX;// Illuminance sensor old value
-    uint16_t il_value = 0;// Illuminance sensor value
-
-    std::cout << "START main loop" << std::endl;
-    while(take > 1){// Loop to periodically read illuminance sensor value
-        ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
-        std::cout << "try open in_illuminance_raw" << std::endl;
-        if(mfile.is_open()){
-            getline(mfile, line);
-            mfile.close();
-            std::cout << "read&close in_illuminance_raw" << std::endl;
-            to_unit16t r = stringToUint16t(line);
-            std::cout << "stringToUint16t(X)" << std::endl;
-            if(r.status == OK){
-                il_value = r.value;
-                cout << "illuminance value: " << il_value << '\n';// Print illuminance value
-                cout << "cal(il_value): " << cal(il_value) << '\n';
-            }else {
-                cout << "ERROR: " << r.status << " set default value in il_value to 0" << '\n';
-                il_value = 0;
-            }
-        }
-        else std::cerr << "Unable to open file" << std::endl;;
-
-        if(il_value > old_value+new_limit || il_value < old_value-new_limit){
-            if(count_check >= number_of_check){
-                std::cout << "NEW VALUE" << std::endl;
-                old_value = il_value;
-                r = sd_bus_call_method(
-                    bus,
-                    "org.kde.Solid.PowerManagement",
-                    "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
-                    "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
-                    "setBrightnessSilent",
-                    &error, &msg,
-                    "i",
-                    cal(il_value)
-                );
-            
-                if (r < 0) {
-                    std::cerr << "Error calling SetBrightness: " << strerror(-r) << "\n";
-                }
-                count_check = 0;
-            }else {
-                count_check++;
-            }
-
-        }else { 
-            std::cout << "OLD VALUE" << std::endl;
-        }
-
-        take--;
-        std::cout << "TAKE:" << take << " COUNT_CHECKOUT:" << count_check << std::endl;
-        this_thread::sleep_for(chrono::milliseconds(500));// Wait 0.5 second before next read
+    if (r < 0) {
+        std::cerr << "Failed to add object: " << strerror(-r) << std::endl;
+        return 1;
     }
+
+    r = sd_bus_request_name(bus, "com.ct.AutoBrightness", 0);
+    if (r < 0) {
+        std::cerr << "Failed to acquire service name: " << strerror(-r) << std::endl;
+        return 1;
+    }
+
+    auto w = std::async(std::launch::async, do_work);
+    
+    while(take > 1){
+        r = sd_bus_process(bus, nullptr);//проверяем наличие сообщений на D-Bus
+        if (r > 0) continue;//если есть сообщение, оно уже обработано >> сразу к следующей итерации
+        //ждем сообщения
+        r = sd_bus_wait(bus, (uint64_t)-1);
+        if (r < 0) { //проверяем наличие ошибок
+            std::cerr << "Failed to wait on bus: " << strerror(-r) << std::endl;
+            break;
+        }
+    }
+
+    sd_bus_slot_unref(slot);
+    sd_bus_unref(bus);
+
+    w.wait();
     return OK;
 }
