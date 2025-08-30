@@ -170,6 +170,33 @@ static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
     return r;//0 = успех, <0 = ошибка
 }
 
+static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
+
+    std::vector<vec2_u16> value = {};
+    int r = sd_bus_message_enter_container(msg, 'a', "(qq)");
+    if(r < 0){
+        std::cout << "[D-BUS] SetVectorBrakePoints > enter_container failed." << std::endl;
+        return r;
+    }
+
+    while(sd_bus_message_at_end(msg, 0) == 0){
+        vec2_u16 point;
+        sd_bus_message_read(msg, "(qq)", &point.x, &point.y);
+        value.push_back(point);
+    }
+
+    sd_bus_message_close_container(msg);
+
+    std::cout << "[D-BUS] SetVectorBrakePoints called, value.size=" << value.size() << std::endl;
+    
+    {
+        std::lock_guard<std::mutex> lock(brakePointsMutex);
+        brakePoints = value;
+    }
+
+    return sd_bus_reply_method_return(msg, NULL);
+}
+
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
     //GetIlluminance
@@ -183,8 +210,9 @@ static const sd_bus_vtable demo_vtable[] = {
     //get|set ValidationCount
     SD_BUS_METHOD("GetValidationCount", "", "y", method_get_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("SetValidationCount", "y", "", method_set_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
-    //getVectorBrakePoints
+    //get|set VectorBrakePoints
     SD_BUS_METHOD("GetVectorBrakePoints", "", "a(qq)", method_get_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
+    SD_BUS_METHOD("SetVectorBrakePoints", "a(qq)", "", method_set_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
 

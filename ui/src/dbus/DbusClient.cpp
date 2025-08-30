@@ -31,6 +31,34 @@ DbusClient::DbusClient(QObject *parent) :
 
     qDBusRegisterMetaType<vec2_u16>();
     qDBusRegisterMetaType<Vec2List>();
+
+    //TEST
+
+    Vec2List v 
+    {
+        { 0,    500   }, 
+        { 20,   3000  }, 
+        { 80,   4000  }, 
+        { 100,  5000  }, 
+        { 500,  5500  },   
+        { 300,  6000  },   
+        { 200,  7000  },
+        { 1400, 8500  },
+        { 3355, 10000 },
+    };
+    
+
+    QList<QVariant> args;
+    args << QVariant::fromValue(v);
+
+    QDBusReply<void> reply = interface.callWithArgumentList(QDBus::Block, "SetVectorBrakePoints", args);
+    if(reply.isValid()){
+        std::cout << "OK" << std::endl;
+    }else{
+        std::cout << "NOK" << std::endl;
+    }
+
+    //END_TEST
 }
 
 

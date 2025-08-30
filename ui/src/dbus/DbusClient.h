@@ -2,6 +2,8 @@
 #define DBUSCLIENT_H
 
 #include <iostream>
+#include <vector>
+
 #include <QObject>
 #include <QDBusInterface>
 #include <QDBusReply>
@@ -10,6 +12,7 @@
 #include <QDBusArgument>
 #include <QMetaType>
 #include <QList>
+#include <QVariant>
 
 struct vec2_u16 {
     quint16 il;
