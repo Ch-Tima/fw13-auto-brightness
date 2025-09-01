@@ -8,8 +8,12 @@
 #include <future>
 #include <mutex>
 
+#include "h/Config.h"
+
 #include <systemd/sd-bus.h>
 #include <systemd/sd-device.h>
+
+#include "h/vec2_u16.h"
 
 using namespace std;
 
@@ -40,11 +44,6 @@ to_unit16t stringToUint16t(string s){
     return r;
 }
 
-struct vec2_u16
-{
-    uint16_t x;
-    uint16_t y;
-};
 
 static std::atomic<uint8_t> take{UINT8_MAX};
 static std::atomic<uint16_t> changeThreshold{50};
@@ -306,6 +305,14 @@ void do_work(){
 int main(){
 
     std::cout << "START: ABI" << std::endl;
+
+    Config f;
+
+    if(f.saveToIni("../aib.conf")){
+        std::cout << "OK\n";
+    }else std::cout << "NOK\n";
+
+    return 0;
 
     sd_bus *bus = nullptr;
     sd_bus_slot *slot = nullptr;
