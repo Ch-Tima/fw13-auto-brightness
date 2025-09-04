@@ -21,5 +21,5 @@ set(HEADERS
 
 
 add_executable(AutoBrightnessIluminance ${SOURCES} ${HEADERS})
-target_include_directories(AutoBrightnessIluminance PRIVATE ${SYSTEMD_INCLUDE_DIRS})
-target_link_libraries(AutoBrightnessIluminance PRIVATE ${SYSTEMD_LIBRARIES})
+target_include_directories(AutoBrightnessIluminance PRIVATE ${SYSTEMD_INCLUDE_DIRS} /usr/include/inih)
+target_link_libraries(AutoBrightnessIluminance PRIVATE ${SYSTEMD_LIBRARIES} inih INIReader)

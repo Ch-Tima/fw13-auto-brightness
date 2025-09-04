@@ -21,6 +21,8 @@ using namespace std;
 #define INVALID_ARG 1
 #define OUT_OF_RANGE 2
 
+static const string CONFIG = "aib.conf";
+
 // Structure to hold conversion result: value and status
 struct to_unit16t
 {
@@ -45,16 +47,16 @@ to_unit16t stringToUint16t(string s){
 }
 
 
-static std::atomic<uint8_t> take{UINT8_MAX};
-static std::atomic<uint16_t> changeThreshold{50};
-static std::atomic<uint8_t> validationCount{3};
-static std::atomic<uint8_t> count_check{0};
-static std::atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
-static std::atomic<uint16_t> il_value{0};// Illuminance sensor value
-static std::atomic<uint16_t> loopDelayMs {500};
+static atomic<uint8_t> take{UINT8_MAX};
+static atomic<uint16_t> changeThreshold{50};
+static atomic<uint8_t> validationCount{3};
+static atomic<uint8_t> count_check{0};
+static atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
+static atomic<uint16_t> il_value{0};// Illuminance sensor value
+static atomic<uint16_t> loopDelayMs {500};
 
-static std::mutex brakePointsMutex;
-static std::vector<vec2_u16> brakePoints
+static mutex brakePointsMutex;
+static vector<vec2_u16> brakePoints
 {
     { 0,    500   }, 
     { 20,   3000  }, 
@@ -307,12 +309,20 @@ int main(){
     std::cout << "START: ABI" << std::endl;
 
     Config f;
-
-    if(f.saveToIni("../aib.conf")){
-        std::cout << "OK\n";
-    }else std::cout << "NOK\n";
-
-    return 0;
+    uint8_t itry = 0;
+    while (!f.loadFromIni(CONFIG) && itry < 3)
+    {
+        if(!f.createDefault(CONFIG)){
+            std::cout << "I can not create aib.conf!\n";
+            this_thread::sleep_for(chrono::milliseconds(250));
+        }else {
+            std::cout << "Create default aib.conf!\n";
+            break;
+        }
+        itry++;
+    }
+    
+    //WORK
 
     sd_bus *bus = nullptr;
     sd_bus_slot *slot = nullptr;
@@ -355,6 +365,10 @@ int main(){
 
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
+
+    if(f.saveToIni(CONFIG)){
+        std::cout << "Successful save config.\n";
+    }else  std::cout << "Failed save config.\n";
 
     w.wait();
     return OK;

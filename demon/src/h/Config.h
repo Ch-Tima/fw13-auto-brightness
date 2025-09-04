@@ -4,6 +4,7 @@
 #include <vector>
 #include "vec2_u16.h"
 #include <fstream>
+#include "INIReader.h"
 
 struct Config
 {
@@ -27,4 +28,5 @@ struct Config
 
     bool loadFromIni(const std::string& filename);
     bool saveToIni(const std::string& filename);
+    bool createDefault(const std::string& filename);
 };
