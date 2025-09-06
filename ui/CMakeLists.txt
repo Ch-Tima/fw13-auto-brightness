@@ -11,12 +11,13 @@ set(SOURCES
     src/main.cpp
     src/view/MainView.cpp
     src/dbus/DbusClient.cpp
-
 )
 
 set(HEADERS
     src/view/MainView.h
     src/dbus/DbusClient.h
+    src/h/Config.h
+    src/h/vec2_u16.h
 )
 
 add_executable(AutoBrightnessUI ${SOURCES} ${HEADERS})

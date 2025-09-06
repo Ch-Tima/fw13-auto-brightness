@@ -6,7 +6,7 @@ MainView::MainView(QWidget *parent){
     dbus = new DbusClient(this);
     //тут обрабатуем запрос снизу
     connect(dbus, &DbusClient::illuminanceReceived, this, [&](short value){
-        if(value < 0){
+        if(value < 0){//"NO SIGNAL!"
             current_il_value->setText("NO SIGNAL!");
         }else{
             current_il_value->setText("ilum:" + QString::number(value));
@@ -19,25 +19,25 @@ MainView::MainView(QWidget *parent){
 
     connect(dbus, &DbusClient::loopDelayMsReceived, this, [&](short value){
         if(value < 0){
-            input_time->setText("NO SIGNAL!");
+            input_time->setValue(0);
         }else{
-            input_time->setText(QString::number(value));
+            input_time->setValue(value);
         }
     });
 
     connect(dbus, &DbusClient::THRReceived, this, [&](short value){
         if(value < 0){
-            input_limit->setText("NO SIGNAL!");
+            input_limit->setValue(0);
         }else{
-            input_limit->setText(QString::number(value));
+            input_limit->setValue(value);
         }
     });
 
     connect(dbus, &DbusClient::validationCountReceived, this, [&](short value){
         if(value < 0){
-            input_check->setText("NO SIGNAL!");
+            input_check->setValue(0);
         }else{
-            input_check->setText(QString::number(value));
+            input_check->setValue(value);
         }
     });
 
@@ -82,17 +82,28 @@ int MainView::init(){
     form = new QFormLayout();
     
     //inputs
-    input_limit = new QLineEdit();
-    input_limit->setPlaceholderText("0 - 255 (default: 50)");
+    input_limit = new QSpinBox();
     input_limit->setFixedSize(225, 30);
+    input_limit->setMaximum(__UINT16_MAX__);
+    //input_limit->setValidator(new QIntValidator(0, 255, this));
+    // connect(input_limit, &QLineEdit::textEdited, this, [&](const QString &text){
+    //     if(text.isEmpty()){
+    //         input_limit->setStyleSheet("QLineEdit{border : 1px solid red;  border-radius: .2em}");
+    //         return;
+    //     }
+    //     input_limit->setText(QString::number(convertToValidNumber(text, 1, 255)));
+    //     input_limit->setStyleSheet("");
+    // });
+    
 
-    input_check = new QLineEdit();
-    input_check->setPlaceholderText("0 - 255 (default: 3)");
+    input_check = new QSpinBox();
     input_check->setFixedSize(225, 30);
+    input_check->setMaximum(__UINT8_MAX__);
 
-    input_time = new QLineEdit();
-    input_time->setPlaceholderText("0.1 - 60 sec (default: 0.5)");
+    input_time = new QSpinBox();
     input_time->setFixedSize(225, 30);
+    input_time->setMaximum(60000);//60sec == 60000ms
+    input_time->setSuffix("ms");
 
     form->addRow("New limit:", input_limit);
     form->addRow("Number of checks:", input_check);
@@ -150,3 +161,15 @@ int MainView::init(){
     layout->addLayout(bottom_btn_layout);
     return 0;
 };
+
+int MainView::convertToValidNumber(const QString &text, int min, int max){
+    if(text[0] == '0'){
+        return 1;
+    }
+    bool ok; 
+    int value = text.toInt(&ok);
+    if (!ok || value < min || value >= max) {
+        return 255;
+    }
+    return value;
+}

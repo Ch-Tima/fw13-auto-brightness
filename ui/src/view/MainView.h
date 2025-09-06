@@ -1,12 +1,15 @@
 #ifndef MAINVIEW_H
 #define MAINVIEW_H
 
+#include <iostream>
 
 #include <QWidget>
 #include <QVBoxLayout>
 #include <QGridLayout>
 #include <QFormLayout>
 #include <QLineEdit>
+#include <QSpinBox>
+#include <QPalette>
 
 #include <QLineSeries>
 #include <QChart>
@@ -26,6 +29,8 @@
 #include <QValueAxis>
 
 #include "dbus/DbusClient.h"
+#include "../h/Config.h"
+#include "../h/vec2_u16.h"
 
 class MainView : public QWidget {
     Q_OBJECT
@@ -36,9 +41,9 @@ private:
     QVBoxLayout *layout = nullptr;
     QGridLayout *main_layout = nullptr;
     QFormLayout *form = nullptr;
-    QLineEdit *input_limit = nullptr;
-    QLineEdit *input_check = nullptr;
-    QLineEdit *input_time = nullptr;
+    QSpinBox *input_limit = nullptr;
+    QSpinBox *input_check = nullptr;
+    QSpinBox *input_time = nullptr;
     //Chart
     QLineSeries *series = nullptr;
     QChart *chart = nullptr;
@@ -54,9 +59,12 @@ private:
 
     //DBus
     DbusClient *dbus;
+    Config conf;
+    Config confNew;
 
     int init();
     int updateChart();
+    int convertToValidNumber(const QString &text, int min, int max);
     
 };
 

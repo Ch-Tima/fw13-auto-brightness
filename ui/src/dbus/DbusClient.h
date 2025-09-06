@@ -14,10 +14,7 @@
 #include <QList>
 #include <QVariant>
 
-struct vec2_u16 {
-    quint16 il;
-    quint16 br;
-};
+#include "../h/vec2_u16.h"
 
 Q_DECLARE_METATYPE(vec2_u16)
 
