@@ -46,43 +46,26 @@ to_unit16t stringToUint16t(string s){
     return r;
 }
 
-
+static Config conf;
 static atomic<uint8_t> take{UINT8_MAX};
-static atomic<uint16_t> changeThreshold{50};
-static atomic<uint8_t> validationCount{3};
 static atomic<uint8_t> count_check{0};
 static atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static atomic<uint16_t> il_value{0};// Illuminance sensor value
-static atomic<uint16_t> loopDelayMs {500};
-
-static mutex brakePointsMutex;
-static vector<vec2_u16> brakePoints
-{
-    { 0,    500   }, 
-    { 20,   3000  }, 
-    { 80,   4000  }, 
-    { 100,  5000  }, 
-    { 200,  5500  },   
-    { 300,  6000  },   
-    { 500,  7000  },
-    { 1400, 8500  },
-    { 3355, 10000 },
-};
 
 uint16_t cal(double mX){
-    std::lock_guard<std::mutex> lock(brakePointsMutex);
+    std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
     double nowY = 0;
     double m = 0;
-    for(int i = 1; i < brakePoints.size(); i++){
-        if(mX > brakePoints[i-1].x && mX <= brakePoints[i].x){
-            m = (brakePoints[i].y - brakePoints[i-1].y)/(brakePoints[i].x - brakePoints[i-1].x);
-            nowY = brakePoints[i-1].y + m * (mX - brakePoints[i-1].x);
+    for(int i = 1; i < conf.brakePoints.size(); i++){
+        if(mX > conf.brakePoints[i-1].x && mX <= conf.brakePoints[i].x){
+            m = (conf.brakePoints[i].y - conf.brakePoints[i-1].y)/(conf.brakePoints[i].x - conf.brakePoints[i-1].x);
+            nowY = conf.brakePoints[i-1].y + m * (mX - conf.brakePoints[i-1].x);
             return static_cast<uint16_t>(nowY);
         }
     }
 
-    if (mX < brakePoints[0].x)  return static_cast<uint16_t>(brakePoints[0].y);
-    if (mX > brakePoints[brakePoints.size()-1].x) return static_cast<uint16_t>(brakePoints[brakePoints.size()-1].y);
+    if (mX < conf.brakePoints[0].x)  return static_cast<uint16_t>(conf.brakePoints[0].y);
+    if (mX > conf.brakePoints[conf.brakePoints.size()-1].x) return static_cast<uint16_t>(conf.brakePoints[conf.brakePoints.size()-1].y);
 
     return 0;
 }
@@ -95,7 +78,7 @@ static int method_get_illuminance(sd_bus_message *msg, void *, sd_bus_error *) {
 }
 
 static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
-    const uint16_t v = loopDelayMs.load();
+    const uint16_t v = conf.loopDelayMs.load();
     std::cout << "[D-BUS] GetLoopDelayMs called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
@@ -108,14 +91,14 @@ static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
     }
 
     std::cout << "[D-BUS] SetLoopDelayMs called, value=" << value << std::endl;
-    loopDelayMs = value;
+    conf.loopDelayMs = value;
 
     return sd_bus_reply_method_return(msg, NULL);
 }
 
 //порог чувствительности: насколько новое значение (il) должно отличаться от старого (old)
 static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
-    const uint16_t v = changeThreshold.load();
+    const uint16_t v = conf.changeThreshold.load();
     std::cout << "[D-BUS] GetChangeThreshold called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
@@ -127,12 +110,12 @@ static int method_set_changeThreshold(sd_bus_message *msg, void *, sd_bus_error 
         return r;
     }
     std::cout << "[D-BUS] SetChangeThreshold called, value=" << value << std::endl;
-    changeThreshold = value;
+    conf.changeThreshold = value;
     return sd_bus_reply_method_return(msg, NULL);
 }
 
 static int method_get_validationCount(sd_bus_message *msg, void *, sd_bus_error *){
-    const uint8_t v = validationCount.load();
+    const uint8_t v = conf.validationCount.load();
     std::cout << "[D-BUS] GetValidationCount called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "y", v); // "y" = uint8
 }
@@ -144,13 +127,13 @@ static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error 
         return r;
     }
     std::cout << "[D-BUS] SetValidationCount called, value=" << v << std::endl;
-    validationCount = v;
+    conf.validationCount = v;
     return sd_bus_reply_method_return(msg, NULL);
 }
 
 static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
-    std::lock_guard<std::mutex> lock(brakePointsMutex);
-    std::cout << "[D-BUS] GetVectorBrakePoints called, value=" << brakePoints.size() << std::endl;
+    std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
+    std::cout << "[D-BUS] GetVectorBrakePoints called, value=" << conf.brakePoints.size() << std::endl;
     sd_bus_message *reply = nullptr;//Создаём указатель под сообщение-ответ (reply). Пока nullptr.
     int r = sd_bus_message_new_method_return(msg, &reply);//Создаём новое сообщение-ответ на входное msg.
     if (r < 0) return r;//создался? 
@@ -158,7 +141,7 @@ static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
     r = sd_bus_message_open_container(reply, 'a', "(qq)");//окрыть
     if (r < 0) return r;
 
-    for (const vec2_u16 &p : brakePoints) {//писать
+    for (const vec2_u16 &p : conf.brakePoints) {//писать
         r = sd_bus_message_append(reply, "(qq)", p.x, p.y);
         if (r < 0) return r;
     }
@@ -191,8 +174,8 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
     std::cout << "[D-BUS] SetVectorBrakePoints called, value.size=" << value.size() << std::endl;
     
     {
-        std::lock_guard<std::mutex> lock(brakePointsMutex);
-        brakePoints = value;
+        std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
+        conf.brakePoints = value;
     }
 
     return sd_bus_reply_method_return(msg, NULL);
@@ -202,13 +185,13 @@ static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
     //GetIlluminance
     SD_BUS_METHOD("GetIlluminance", "", "q", method_get_illuminance, SD_BUS_VTABLE_UNPRIVILEGED),
-    //get|set LoopDelayMs
+    //get|set conf.loopDelayMs
     SD_BUS_METHOD("GetLoopDelayMs", "", "q", method_get_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("SetLoopDelayMs", "q", "", method_set_loopDelayMs, SD_BUS_VTABLE_UNPRIVILEGED),
     //get|set ChangeThreshold
     SD_BUS_METHOD("GetChangeThreshold", "", "q", method_get_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("SetChangeThreshold", "q", "", method_set_changeThreshold, SD_BUS_VTABLE_UNPRIVILEGED),
-    //get|set ValidationCount
+    //get|set conf.validationCount
     SD_BUS_METHOD("GetValidationCount", "", "y", method_get_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("SetValidationCount", "y", "", method_set_validationCount, SD_BUS_VTABLE_UNPRIVILEGED),
     //get|set VectorBrakePoints
@@ -250,10 +233,10 @@ void do_work(){
 
         const uint16_t il = il_value.load();
         const uint16_t old = old_value.load();
-        const uint8_t thr = changeThreshold.load();
+        const uint8_t thr = conf.changeThreshold.load();
 
         if (il > old + thr || il < old - thr) {
-            if (count_check.load() >= validationCount.load()) {
+            if (count_check.load() >=conf.validationCount.load()) {
                 old_value = il;
 
                 // Готовим чистые error/reply перед каждым вызовом
@@ -298,7 +281,7 @@ void do_work(){
 
         std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
         std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;
-        this_thread::sleep_for(chrono::milliseconds(loopDelayMs));// Wait 0.5 second before next read
+        this_thread::sleep_for(chrono::milliseconds(conf.loopDelayMs));// Wait 0.5 second before next read
     }
     sd_bus_unref(client_bus);// Закрываем клиентскую шину воркера
 
@@ -308,11 +291,10 @@ int main(){
 
     std::cout << "START: ABI" << std::endl;
 
-    Config f;
     uint8_t itry = 0;
-    while (!f.loadFromIni(CONFIG) && itry < 3)
+    while (!conf.loadFromIni(CONFIG) && itry < 3)
     {
-        if(!f.createDefault(CONFIG)){
+        if(!conf.createDefault(CONFIG)){
             std::cout << "I can not create aib.conf!\n";
             this_thread::sleep_for(chrono::milliseconds(250));
         }else {
@@ -366,7 +348,7 @@ int main(){
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
 
-    if(f.saveToIni(CONFIG)){
+    if(conf.saveToIni(CONFIG)){
         std::cout << "Successful save config.\n";
     }else  std::cout << "Failed save config.\n";
 
