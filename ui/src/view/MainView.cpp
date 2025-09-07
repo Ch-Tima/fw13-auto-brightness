@@ -19,25 +19,28 @@ MainView::MainView(QWidget *parent){
 
     connect(dbus, &DbusClient::loopDelayMsReceived, this, [&](short value){
         if(value < 0){
-            input_time->setValue(0);
+            input_loop_delay->setValue(origConfig.loopDelayMs);
         }else{
-            input_time->setValue(value);
+            origConfig.loopDelayMs = value;
+            input_loop_delay->setValue(origConfig.loopDelayMs);
         }
     });
 
     connect(dbus, &DbusClient::THRReceived, this, [&](short value){
         if(value < 0){
-            input_limit->setValue(0);
+            input_change_threshold->setValue(origConfig.changeThreshold);
         }else{
-            input_limit->setValue(value);
+            origConfig.changeThreshold = value;
+            input_change_threshold->setValue(origConfig.changeThreshold);
         }
     });
 
     connect(dbus, &DbusClient::validationCountReceived, this, [&](short value){
         if(value < 0){
-            input_check->setValue(0);
+            input_validation_count->setValue(origConfig.validationCount);
         }else{
-            input_check->setValue(value);
+            origConfig.validationCount = value;
+            input_validation_count->setValue(origConfig.validationCount);
         }
     });
 
@@ -48,6 +51,7 @@ MainView::MainView(QWidget *parent){
         } else {
             qDebug() << "Получено" << points.size() << "точек";
             for (vec2_u16 item : points) {
+                origConfig.brakePoints.push_back(item);
                 int row = table->rowCount();
                 table->insertRow(row);
         
@@ -73,7 +77,6 @@ int MainView::init(){
     setWindowTitle("Auto Brightness Settings");
     setMinimumSize(QSize(900, 600));
 
-
     layout = new QVBoxLayout(this);
 
     //BEGIN_MAIN_LAYOUT
@@ -82,32 +85,34 @@ int MainView::init(){
     form = new QFormLayout();
     
     //inputs
-    input_limit = new QSpinBox();
-    input_limit->setFixedSize(225, 30);
-    input_limit->setMaximum(__UINT16_MAX__);
-    //input_limit->setValidator(new QIntValidator(0, 255, this));
-    // connect(input_limit, &QLineEdit::textEdited, this, [&](const QString &text){
-    //     if(text.isEmpty()){
-    //         input_limit->setStyleSheet("QLineEdit{border : 1px solid red;  border-radius: .2em}");
-    //         return;
-    //     }
-    //     input_limit->setText(QString::number(convertToValidNumber(text, 1, 255)));
-    //     input_limit->setStyleSheet("");
-    // });
-    
+    input_change_threshold = new QSpinBox();
+    input_change_threshold->setFixedSize(225, 30);
+    input_change_threshold->setMaximum(__UINT16_MAX__);
+    connect(input_change_threshold, &QSpinBox::valueChanged, this, [&](int v){
+        checkChangesWithConfig();
+    });
 
-    input_check = new QSpinBox();
-    input_check->setFixedSize(225, 30);
-    input_check->setMaximum(__UINT8_MAX__);
 
-    input_time = new QSpinBox();
-    input_time->setFixedSize(225, 30);
-    input_time->setMaximum(60000);//60sec == 60000ms
-    input_time->setSuffix("ms");
+    input_validation_count = new QSpinBox();
+    input_validation_count->setFixedSize(225, 30);
+    input_validation_count->setMaximum(__UINT8_MAX__);
+    connect(input_validation_count, &QSpinBox::valueChanged, this, [&](int v){
+        checkChangesWithConfig();
+    });
 
-    form->addRow("New limit:", input_limit);
-    form->addRow("Number of checks:", input_check);
-    form->addRow("LoopDelayMs:", input_time);
+
+    input_loop_delay = new QSpinBox();
+    input_loop_delay->setFixedSize(225, 30);
+    input_loop_delay->setMaximum(60000);//60sec == 60000ms
+    input_loop_delay->setSuffix("ms");
+    connect(input_loop_delay, &QSpinBox::valueChanged, this, [&](int v){
+        checkChangesWithConfig();
+    });
+
+
+    form->addRow("change threshold:", input_change_threshold);
+    form->addRow("validation count:", input_validation_count);
+    form->addRow("loop delay:", input_loop_delay);
 
 
     main_layout->addLayout(form, 0, 0, 1, 1);
@@ -140,7 +145,6 @@ int MainView::init(){
     main_layout->addWidget(table, 1, 0, 2, 1);
     main_layout->setRowStretch(1, 1);  // таблица растягивается
 
-
     //Current il_value
     current_il_value = new QLabel("ilum:1475"); 
     main_layout->addWidget(current_il_value, 2, 1, 1, 1);
@@ -154,11 +158,15 @@ int MainView::init(){
     bottom_btn_layout->addWidget(btn_cancel/*, 0, Qt::AlignRight */);
     btn_applay = new QPushButton("Aplay");
     btn_applay->setFixedSize(100, 30);
+    btn_applay->setEnabled(false);
     bottom_btn_layout->addWidget(btn_applay);
 
     //Add all
     layout->addLayout(main_layout);
     layout->addLayout(bottom_btn_layout);
+
+    checkChangesWithConfig();
+
     return 0;
 };
 
@@ -172,4 +180,15 @@ int MainView::convertToValidNumber(const QString &text, int min, int max){
         return 255;
     }
     return value;
+}
+
+void MainView::checkChangesWithConfig(){
+    bool result = false;
+
+    if(input_change_threshold->value() != origConfig.changeThreshold || 
+    input_loop_delay->value() != origConfig.loopDelayMs ||
+    input_validation_count->value() != origConfig.validationCount){
+        result = true;
+    }
+    btn_applay->setEnabled(result);
 }

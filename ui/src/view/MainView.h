@@ -41,16 +41,16 @@ private:
     QVBoxLayout *layout = nullptr;
     QGridLayout *main_layout = nullptr;
     QFormLayout *form = nullptr;
-    QSpinBox *input_limit = nullptr;
-    QSpinBox *input_check = nullptr;
-    QSpinBox *input_time = nullptr;
+    QSpinBox *input_change_threshold = nullptr;
+    QSpinBox *input_validation_count = nullptr;
+    QSpinBox *input_loop_delay = nullptr;
     //Chart
     QLineSeries *series = nullptr;
     QChart *chart = nullptr;
     QChartView *chartView = nullptr;
     //Table
     QTableWidget *table = nullptr;
-    //
+    //iluminance now
     QLabel *current_il_value = nullptr;
     //Buttons
     QHBoxLayout *bottom_btn_layout = nullptr;
@@ -59,12 +59,12 @@ private:
 
     //DBus
     DbusClient *dbus;
-    Config conf;
-    Config confNew;
+    Config origConfig;
 
     int init();
     int updateChart();
     int convertToValidNumber(const QString &text, int min, int max);
+    void checkChangesWithConfig();
     
 };
 

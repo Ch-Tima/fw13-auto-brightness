@@ -5,8 +5,8 @@
 
 struct Config
 {
-    uint16_t changeThreshold;
-    uint8_t validationCount;
-    uint16_t loopDelayMs;
-    std::vector<vec2_u16> brakePoints;
+    uint16_t changeThreshold = 0;
+    uint8_t validationCount = 0;
+    uint16_t loopDelayMs = 0;
+    std::vector<vec2_u16> brakePoints = {};
 };
