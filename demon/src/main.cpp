@@ -47,7 +47,7 @@ to_unit16t stringToUint16t(string s){
 }
 
 static Config conf;
-static atomic<uint8_t> take{UINT8_MAX};
+static atomic<uint16_t> take{UINT16_MAX};
 static atomic<uint8_t> count_check{0};
 static atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static atomic<uint16_t> il_value{0};// Illuminance sensor value
@@ -277,7 +277,7 @@ void do_work(){
             std::cout << "OLD VALUE" << std::endl;
         }
         
-        take = take-1;
+        take = take.load()-1;
 
         std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
         std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;

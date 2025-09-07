@@ -55,15 +55,22 @@ MainView::MainView(QWidget *parent){
                 int row = table->rowCount();
                 table->insertRow(row);
         
-                QLineEdit *edit1 = new QLineEdit();
-                edit1->setText(QString::number(item.il));
-                QLineEdit *edit2 = new QLineEdit();
-                edit2->setText(QString::number(item.br/100));
+                QSpinBox *edit1 = new QSpinBox();
+                edit1->setMaximum(MAX_VALUE_12BIT_ADC);
+                connect(edit1, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
+                QSpinBox *edit2 = new QSpinBox();
+                edit2->setMaximum(100);
+                connect(edit2, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
+
+                edit1->setValue(item.il);
+                edit2->setValue(item.br/100);
+
                 table->setCellWidget(row, 0, edit1);
                 table->setCellWidget(row, 1, edit2);
                 series->append(item.br/100, item.il);
             }
             chart->update();
+            checkChangesWithConfig();
         }
     });
 
@@ -88,26 +95,20 @@ int MainView::init(){
     input_change_threshold = new QSpinBox();
     input_change_threshold->setFixedSize(225, 30);
     input_change_threshold->setMaximum(__UINT16_MAX__);
-    connect(input_change_threshold, &QSpinBox::valueChanged, this, [&](int v){
-        checkChangesWithConfig();
-    });
+    connect(input_change_threshold, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
 
 
     input_validation_count = new QSpinBox();
     input_validation_count->setFixedSize(225, 30);
     input_validation_count->setMaximum(__UINT8_MAX__);
-    connect(input_validation_count, &QSpinBox::valueChanged, this, [&](int v){
-        checkChangesWithConfig();
-    });
+    connect(input_validation_count, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
 
 
     input_loop_delay = new QSpinBox();
     input_loop_delay->setFixedSize(225, 30);
     input_loop_delay->setMaximum(60000);//60sec == 60000ms
     input_loop_delay->setSuffix("ms");
-    connect(input_loop_delay, &QSpinBox::valueChanged, this, [&](int v){
-        checkChangesWithConfig();
-    });
+    connect(input_loop_delay, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
 
 
     form->addRow("change threshold:", input_change_threshold);
@@ -129,7 +130,7 @@ int MainView::init(){
     axisX->setTitleText("Brightness %");
     axisY->setTitleText("Illuminance");
     axisX->setRange(0, 100);
-    axisY->setRange(0, 4059);
+    axisY->setRange(0, MAX_VALUE_12BIT_ADC);
     chart->addAxis(axisX, Qt::AlignBottom);
     chart->addAxis(axisY, Qt::AlignLeft);
     series->attachAxis(axisX);
@@ -185,10 +186,35 @@ int MainView::convertToValidNumber(const QString &text, int min, int max){
 void MainView::checkChangesWithConfig(){
     bool result = false;
 
+    //Проверяет простые поля
     if(input_change_threshold->value() != origConfig.changeThreshold || 
     input_loop_delay->value() != origConfig.loopDelayMs ||
     input_validation_count->value() != origConfig.validationCount){
         result = true;
     }
+    //Проверяет таблицу
+    if(!result){
+        //если удолена или новая запись
+        if (table->rowCount() != static_cast<int>(origConfig.brakePoints.size())) {
+            result = true;
+        }else{//проверка значений в таблице
+            for(int row = 0; row < table->rowCount(); row++){
+                auto *editIl = qobject_cast<QSpinBox*>(table->cellWidget(row, 0));
+                auto *editBr = qobject_cast<QSpinBox*>(table->cellWidget(row, 1));
+
+                if (!editIl || !editBr) continue;
+
+                int il = editIl->value();
+                int br = editBr->value();
+
+                if (il != origConfig.brakePoints[row].il ||
+                    br != origConfig.brakePoints[row].br / 100) {
+                    result = true;
+                    break;
+                }
+            }
+        }
+    }
+
     btn_applay->setEnabled(result);
 }

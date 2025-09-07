@@ -61,6 +61,8 @@ private:
     DbusClient *dbus;
     Config origConfig;
 
+    static const short MAX_VALUE_12BIT_ADC = 4095;
+
     int init();
     int updateChart();
     int convertToValidNumber(const QString &text, int min, int max);
