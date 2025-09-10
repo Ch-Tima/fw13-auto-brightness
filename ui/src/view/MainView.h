@@ -27,6 +27,7 @@
 #include <QList>
 #include <QTimer>
 #include <QValueAxis>
+#include <QSvgWidget>
 
 #include "dbus/DbusClient.h"
 #include "../h/Config.h"
@@ -56,6 +57,8 @@ private:
     QHBoxLayout *bottom_btn_layout = nullptr;
     QPushButton *btn_cancel = nullptr;
     QPushButton *btn_applay = nullptr;
+
+    QSvgWidget *svg_update = nullptr;
 
     //DBus
     DbusClient *dbus;

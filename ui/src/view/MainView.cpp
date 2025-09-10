@@ -154,6 +154,17 @@ int MainView::init(){
     //Buttons
     bottom_btn_layout = new QHBoxLayout();
     bottom_btn_layout->addStretch();
+    
+    svg_update = new QSvgWidget("../assets/update_24dp.svg");
+    svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    svg_update->hide();
+    bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
+
+    svg_update = new QSvgWidget("../assets/check_circle_24dp.svg");
+    svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    svg_update->show();
+    bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
+
     btn_cancel = new QPushButton("Cancel");
     btn_cancel->setFixedSize(100, 30);
     bottom_btn_layout->addWidget(btn_cancel/*, 0, Qt::AlignRight */);

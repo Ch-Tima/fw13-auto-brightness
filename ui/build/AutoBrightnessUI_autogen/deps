@@ -530,6 +530,12 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/include/qt6/QtGui/qvector2d.h \
 	/usr/include/qt6/QtGui/qvectornd.h \
 	/usr/include/qt6/QtGui/qwindowdefs.h \
+	/usr/include/qt6/QtSvg/qtsvgexports.h \
+	/usr/include/qt6/QtSvg/qtsvgglobal.h \
+	/usr/include/qt6/QtSvgWidgets/QSvgWidget \
+	/usr/include/qt6/QtSvgWidgets/qsvgwidget.h \
+	/usr/include/qt6/QtSvgWidgets/qtsvgwidgetsexports.h \
+	/usr/include/qt6/QtSvgWidgets/qtsvgwidgetsglobal.h \
 	/usr/include/qt6/QtWidgets/QFormLayout \
 	/usr/include/qt6/QtWidgets/QGraphicsView \
 	/usr/include/qt6/QtWidgets/QGraphicsWidget \
@@ -917,6 +923,36 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateDependencies.cmake \
 	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateTargets.cmake \
 	/usr/lib/cmake/Qt6OpenGLWidgetsPrivate/Qt6OpenGLWidgetsPrivateVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgConfig.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgConfigVersion.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgDependencies.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgTargets-relwithdebinfo.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgTargets.cmake \
+	/usr/lib/cmake/Qt6Svg/Qt6SvgVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateConfig.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateConfigVersion.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateDependencies.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateTargets.cmake \
+	/usr/lib/cmake/Qt6SvgPrivate/Qt6SvgPrivateVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsConfig.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsConfigVersion.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsDependencies.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsTargets-relwithdebinfo.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsTargets.cmake \
+	/usr/lib/cmake/Qt6SvgWidgets/Qt6SvgWidgetsVersionlessAliasTargets.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateAdditionalTargetInfo.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateConfig.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateConfigVersion.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateConfigVersionImpl.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateDependencies.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateTargets.cmake \
+	/usr/lib/cmake/Qt6SvgWidgetsPrivate/Qt6SvgWidgetsPrivateVersionlessAliasTargets.cmake \
 	/usr/lib/cmake/Qt6Widgets/Qt6WidgetsAdditionalTargetInfo.cmake \
 	/usr/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake \
 	/usr/lib/cmake/Qt6Widgets/Qt6WidgetsConfigVersion.cmake \

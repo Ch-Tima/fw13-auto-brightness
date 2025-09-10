@@ -86,6 +86,7 @@
 #define __SCHAR_MAX__ 0x7f
 #define __FLT128_MANT_DIG__ 113
 #define __WCHAR_MIN__ (-__WCHAR_MAX__ - 1)
+#define QT_SVG_LIB 1
 #define __INT64_C(c) c ## L
 #define __SSP_STRONG__ 3
 #define __GCC_ATOMIC_POINTER_LOCK_FREE 2
@@ -144,6 +145,7 @@
 #define __FLT16_MAX_10_EXP__ 4
 #define __cpp_delegating_constructors 200604L
 #define __DBL_MAX__ double(1.79769313486231570814527423731704357e+308L)
+#define QT_SVGWIDGETS_LIB 1
 #define __cpp_raw_strings 200710L
 #define __INT_FAST32_MAX__ 0x7fffffffffffffffL
 #define __DBL_HAS_INFINITY__ 1
@@ -421,6 +423,7 @@
 #define __FLT32_DIG__ 6
 #define __UINT64_TYPE__ long unsigned int
 #define __UINT32_C(c) c ## U
+#define ARCHITECTURE_ID "x86_64"
 #define __cpp_alias_templates 200704L
 #define __FLT_DENORM_MIN__ 1.40129846432481707092372958328991613e-45F
 #define __FLT128_IS_IEC_60559__ 1
