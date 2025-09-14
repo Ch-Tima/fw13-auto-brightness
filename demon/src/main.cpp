@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -28,6 +29,10 @@ struct to_unit16t
 {
     uint16_t value = 0;
     uint8_t status = 0;
+};
+
+struct AsyncData {
+    sd_bus_message *msg;
 };
 
 // Converts a string to uint16_t with error handling
@@ -86,14 +91,30 @@ static int method_get_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
 static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
     uint16_t value;
     int r = sd_bus_message_read(msg, "q", &value);
-    if(r < 0){
+    if (r < 0)
         return r;
-    }
 
-    std::cout << "[D-BUS] SetLoopDelayMs called, value=" << value << std::endl;
-    conf.loopDelayMs = value;
+    std::cout << "[D-BUS] SetLoopDelayMs called, value=" << value << " (async)" << std::endl;
 
-    return sd_bus_reply_method_return(msg, NULL);
+    // Сохраняем сообщение для отложенного ответа
+    auto *data = new AsyncData{msg};
+    sd_bus_message_ref(msg); // увеличиваем счетчик ссылок
+
+    // Запускаем фоновый поток для "долгой" работы
+    std::thread([value, data]() {
+        std::this_thread::sleep_for(std::chrono::seconds(10)); // симуляция долгой операции
+
+        // Сохраняем результат
+        conf.loopDelayMs = value;
+
+        // Отправляем ответ обратно в D-Bus
+        sd_bus_reply_method_return(data->msg, nullptr);
+        sd_bus_message_unref(data->msg); // освобождаем сообщение
+        delete data;
+    }).detach();
+
+    // Возвращаемся сразу, не блокируя loop
+    return 1; // 1 = сообщение обработано асинхронно
 }
 
 //порог чувствительности: насколько новое значение (il) должно отличаться от старого (old)
@@ -103,8 +124,10 @@ static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error 
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
 
+
 static int method_set_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
     uint16_t value;
+    this_thread::sleep_for(chrono::seconds(5));//TEST
     int r = sd_bus_message_read(msg, "q", &value);
     if(r < 0){
         return r;
@@ -127,8 +150,20 @@ static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error 
         return r;
     }
     std::cout << "[D-BUS] SetValidationCount called, value=" << v << std::endl;
-    conf.validationCount = v;
-    return sd_bus_reply_method_return(msg, NULL);
+
+    auto *data = new AsyncData{msg};
+    sd_bus_message_ref(msg); // увеличиваем счетчик ссылок
+
+    std::thread([v, data](){
+        std::this_thread::sleep_for(std::chrono::seconds(10)); // симуляция долгой операции
+        conf.validationCount = v;
+        // Отправляем ответ обратно в D-Bus
+        sd_bus_reply_method_return(data->msg, nullptr);
+        sd_bus_message_unref(data->msg); // освобождаем сообщение
+        delete data;
+    }).detach();
+
+    return 1;
 }
 
 static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
@@ -199,6 +234,7 @@ static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_METHOD("SetVectorBrakePoints", "a(qq)", "", method_set_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
+
 
 void do_work(){
     //do_work работа над получением in_illuminance_raw и изменения яркости экрана 
