@@ -97,7 +97,7 @@ static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
     std::cout << "[D-BUS] SetLoopDelayMs called, value=" << value << " (async)" << std::endl;
 
     // Сохраняем сообщение для отложенного ответа
-    auto *data = new AsyncData{msg};
+    AsyncData *data = new AsyncData{msg};
     sd_bus_message_ref(msg); // увеличиваем счетчик ссылок
 
     // Запускаем фоновый поток для "долгой" работы
@@ -123,7 +123,6 @@ static int method_get_changeThreshold(sd_bus_message *msg, void *, sd_bus_error 
     std::cout << "[D-BUS] GetChangeThreshold called, value=" << v << std::endl;
     return sd_bus_reply_method_return(msg, "q", v); // "q" = uint16
 }
-
 
 static int method_set_changeThreshold(sd_bus_message *msg, void *, sd_bus_error *){
     uint16_t value;
@@ -151,7 +150,7 @@ static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error 
     }
     std::cout << "[D-BUS] SetValidationCount called, value=" << v << std::endl;
 
-    auto *data = new AsyncData{msg};
+    AsyncData *data = new AsyncData{msg};
     sd_bus_message_ref(msg); // увеличиваем счетчик ссылок
 
     std::thread([v, data](){
@@ -188,33 +187,48 @@ static int method_get_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
     sd_bus_message_unref(reply);//освобождаем память
     return r;//0 = успех, <0 = ошибка
 }
-
-static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *){
-
-    std::vector<vec2_u16> value = {};
+static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) {
+    std::vector<vec2_u16> value;
+    //read data
     int r = sd_bus_message_enter_container(msg, 'a', "(qq)");
-    if(r < 0){
-        std::cout << "[D-BUS] SetVectorBrakePoints > enter_container failed." << std::endl;
+    if (r < 0) {
+        std::cerr << "[D-BUS] SetVectorBrakePoints > enter_container failed." << std::endl;
         return r;
     }
 
-    while(sd_bus_message_at_end(msg, 0) == 0){
+    //convert
+    while (sd_bus_message_at_end(msg, 0) == 0) {
         vec2_u16 point;
-        sd_bus_message_read(msg, "(qq)", &point.x, &point.y);
+        r = sd_bus_message_read(msg, "(qq)", &point.x, &point.y);
+        if (r < 0) {
+            std::cerr << "[D-BUS] sd_bus_message_read failed." << std::endl;
+            sd_bus_message_close_container(msg);
+            return r;
+        }
         value.push_back(point);
     }
-
     sd_bus_message_close_container(msg);
 
-    std::cout << "[D-BUS] SetVectorBrakePoints called, value.size=" << value.size() << std::endl;
-    
-    {
-        std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
-        conf.brakePoints = value;
-    }
+    AsyncData *data = new AsyncData{msg};
+    sd_bus_message_ref(msg);
+    std::thread([value, data]() {
+        std::this_thread::sleep_for(std::chrono::seconds(5));
 
-    return sd_bus_reply_method_return(msg, NULL);
+        {
+            std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
+            conf.brakePoints = value;
+        }
+
+        std::cout << "[D-BUS] SetVectorBrakePoints finished, size=" << value.size() << std::endl;
+        //send
+        sd_bus_reply_method_return(data->msg, nullptr);
+        sd_bus_message_unref(data->msg);
+        delete data;
+    }).detach();
+
+    return 1; // async
 }
+
 
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
