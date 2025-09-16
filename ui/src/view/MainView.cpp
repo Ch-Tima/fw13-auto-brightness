@@ -289,9 +289,22 @@ void MainView::applayConfigToDemon(){
         dbus->setValidationCount(vc, [this, vc](bool ok, const QString &msg) {
             if(ok){
                 qDebug() << "OK >> setValidationCount";
-                origConfig.loopDelayMs = vc;
+                origConfig.validationCount = vc;
             } else {
                 qDebug() << "fail >> setValidationCount. msg:" << msg;
+            }
+        });
+    }
+
+    if(input_change_threshold->value() != origConfig.changeThreshold) {
+        quint16 ch = static_cast<quint16>(input_change_threshold->value());
+        qDebug() << "ch:" << ch;
+        dbus->setChangeThreshold(ch, [this, ch](bool ok, const QString &msg) {
+            if(ok){
+                qDebug() << "OK >> SetChangeThreshold";
+                origConfig.changeThreshold = ch;
+            } else {
+                qDebug() << "fail >> SetChangeThreshold. msg:" << msg;
             }
         });
     }

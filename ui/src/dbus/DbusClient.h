@@ -45,7 +45,7 @@ class DbusClient : public QObject {
 
         void setLoopDelay(quint16 value, Callback cb);
         void setValidationCount(quint8 value, Callback cb);
-        void setChangeThreshold(quint16 value);
+        void setChangeThreshold(quint16 value, Callback cb);
 
         uint16_t getRequestСountNow();
 

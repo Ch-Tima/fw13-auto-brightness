@@ -132,14 +132,23 @@ void DbusClient::setLoopDelay(quint16 value, Callback cb){
     );
 }
 
-void DbusClient::setChangeThreshold(quint16 value){
-    QDBusMessage reply = interface.call("SetChangeThreshold", value);
-    if (reply.type() == QDBusMessage::ErrorMessage) {
-        qWarning() << "Ошибка при вызове SetChangeThreshold:"
-                   << reply.errorMessage();
-    } else {
-        qDebug() << "SetChangeThreshold успешно выполнен!";
-    }
+void DbusClient::setChangeThreshold(quint16 value, Callback cb){
+    requestСountNow++;
+    QVariant arg = QVariant::fromValue<quint16>(value);
+    QDBusPendingCall replyAsync = interface.asyncCall("SetChangeThreshold", arg);
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(replyAsync, this);
+
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, 
+    [watcher, cb, this](QDBusPendingCallWatcher *w){
+        QDBusPendingReply<> reply = *w;
+        w->deleteLater();
+        if (reply.isError()) {
+            cb(false, reply.error().message());
+        } else {
+            cb(true, "ok");
+        }
+        requestСountNow--;
+    });
 }
 
 void DbusClient::setValidationCount(quint8 value, Callback cb){
