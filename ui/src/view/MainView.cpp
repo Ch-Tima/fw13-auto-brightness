@@ -3,6 +3,7 @@
 
 MainView::MainView(QWidget *parent){
     init();
+    this->installEventFilter(this);
     dbus = new DbusClient(this);
     //тут обрабатуем запрос снизу
     connect(dbus, &DbusClient::illuminanceReceived, this, [&](short value){
@@ -155,15 +156,35 @@ int MainView::init(){
     bottom_btn_layout = new QHBoxLayout();
     bottom_btn_layout->addStretch();
     
-    svg_update = new QSvgWidget("../assets/update_24dp.svg");
-    svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    svg_update->hide();
-    bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
 
-    svg_update = new QSvgWidget("../assets/check_circle_24dp.svg");
-    svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    svg_update->show();
-    bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
+    QGraphicsScene* scene = new QGraphicsScene(this);
+    svg_update_item = new QGraphicsSvgItem("../assets/update_24dp.svg");
+    svg_update_item->setFlags(QGraphicsItem::ItemClipsToShape);
+    svg_update_item->setCacheMode(QGraphicsItem::NoCache);
+    svg_update_item->setZValue(0);
+
+    scene->addItem(svg_update_item);
+
+    svg_update_view = new QGraphicsView(scene, this);
+    svg_update_view->setStyleSheet("background: transparent; border: none;");
+    svg_update_view->setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+    svg_update_view->setFixedSize(32, 32); // под размер иконки
+    svg_update_view->hide();
+
+    svg_update_view->setAlignment(Qt::AlignCenter);
+    svg_update_view->setResizeAnchor(QGraphicsView::AnchorViewCenter);
+    svg_update_view->setSceneRect(svg_update_item->boundingRect());
+    bottom_btn_layout->addWidget(svg_update_view, Qt::AlignCenter);
+
+    // svg_update = new QSvgWidget("../assets/update_24dp.svg");
+    // svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    // svg_update->hide();
+    // bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
+
+    svg_ok = new QSvgWidget("../assets/check_circle_24dp.svg");
+    svg_ok->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    svg_ok->show();
+    bottom_btn_layout->addWidget(svg_ok, Qt::AlignCenter);
 
     btn_cancel = new QPushButton("Cancel");
     btn_cancel->setFixedSize(100, 30);
@@ -178,6 +199,15 @@ int MainView::init(){
     layout->addLayout(bottom_btn_layout);
 
     checkChangesWithConfig();
+
+    connect(btn_applay, &QPushButton::clicked, this, &MainView::applayConfigToDemon);
+
+    overlay = new QWidget(this);
+    overlay->setStyleSheet("background-color: rgba(0,0,0,50%);");
+    overlay->setGeometry(this->rect());
+    overlay->releaseKeyboard();
+    overlay->raise();
+    overlay->hide();
 
     return 0;
 };
@@ -227,5 +257,133 @@ void MainView::checkChangesWithConfig(){
         }
     }
 
+    if(!result){
+        svg_ok->show();
+    }else svg_ok->hide();
+
     btn_applay->setEnabled(result);
+}
+
+
+void MainView::applayConfigToDemon(){
+    svg_ok->hide();
+    //svg_update->show();
+    btn_applay->setEnabled(false); // блокируем кнопку
+
+    if(input_loop_delay->value() != origConfig.loopDelayMs) {
+        quint16 ld = static_cast<quint16>(input_loop_delay->value());
+        qDebug() << "ld:" << ld;
+        dbus->setLoopDelay(ld, [this, ld](bool ok, const QString &msg) {
+            if(ok){
+                qDebug() << "OK >> setLoopDelay";
+                origConfig.loopDelayMs = ld;
+            } else {
+                qDebug() << "fail >> setLoopDelay. msg:" << msg;
+            }
+        });
+    }
+
+    if(input_validation_count->value() != origConfig.validationCount) {
+        quint8 vc = static_cast<quint8>(input_validation_count->value());
+        qDebug() << "vc:" << vc;
+        dbus->setValidationCount(vc, [this, vc](bool ok, const QString &msg) {
+            if(ok){
+                qDebug() << "OK >> setValidationCount";
+                origConfig.loopDelayMs = vc;
+            } else {
+                qDebug() << "fail >> setValidationCount. msg:" << msg;
+            }
+        });
+    }
+
+    startRequestWatcher();
+}
+
+void MainView::startRequestWatcher(){
+    if (watcherTimer) {
+        return; // уже крутится
+    }
+
+    watcherTimer = new QTimer(this);
+    connect(watcherTimer, &QTimer::timeout, this, [this]() {
+
+        if (dbus->getRequestСountNow() > 0) {
+            qDebug() << "getRequestСountNow > 0";
+            if (!rotationTimer || !rotationTimer->isActive()) {
+                startSvgUpdateAnimation();
+                //this->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+                //this->setEnabled(false);
+                uiBlocked = true;
+                overlay->show();
+                overlay->grabKeyboard(); 
+            }
+        } else {
+            qDebug() << "getRequestСountNow == 0";
+            if (rotationTimer && rotationTimer->isActive()) {
+                stopSvgUpdateAnimation();
+                uiBlocked = false;
+                overlay->hide();
+                overlay->releaseKeyboard();
+                // GUI обновляем в главном потоке
+                svg_ok->show();
+                //svg_update->hide();
+                checkChangesWithConfig();
+            }
+            // все запросы завершились → убиваем watcher
+            watcherTimer->stop();
+            watcherTimer->deleteLater();
+            watcherTimer = nullptr;
+        }
+    });
+
+    watcherTimer->start(30); 
+}
+
+void MainView::startSvgUpdateAnimation(){
+    if (!rotationTimer) {
+        rotationTimer = new QTimer(this);
+        connect(rotationTimer, &QTimer::timeout, this, [this]() {
+            rotationAngle += 10;
+            if (rotationAngle >= 360) rotationAngle = 0;
+    
+            QRectF bounds = svg_update_item->boundingRect();
+            QTransform transform;
+            transform.translate(bounds.width()/2, bounds.height()/2);
+            transform.rotate(rotationAngle);
+            transform.translate(-bounds.width()/2, -bounds.height()/2);
+    
+            svg_update_item->setTransform(transform);
+        });
+    }
+
+    rotationAngle = 0;
+    rotationTimer->start(50);
+    svg_update_view->show();
+}
+
+void MainView::stopSvgUpdateAnimation(){
+    if (rotationTimer) {
+        rotationTimer->stop();
+    }
+    svg_update_item->setTransform(QTransform());
+    svg_update_view->hide();
+}
+
+bool MainView::eventFilter(QObject* obj, QEvent* event)
+{
+    if (uiBlocked) {
+        switch (event->type()) {
+            case QEvent::MouseButtonPress:
+            case QEvent::MouseButtonRelease:
+            case QEvent::MouseButtonDblClick:
+            case QEvent::KeyPress:
+            case QEvent::KeyRelease:
+                return true; // блокируем эти события
+            default:
+                break;
+        }
+    }
+
+    // всё остальное пропускаем
+    return QWidget::eventFilter(obj, event);
 }

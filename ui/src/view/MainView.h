@@ -28,6 +28,9 @@
 #include <QTimer>
 #include <QValueAxis>
 #include <QSvgWidget>
+#include <QGraphicsSvgItem>
+
+#include <QtConcurrent>
 
 #include "dbus/DbusClient.h"
 #include "../h/Config.h"
@@ -37,7 +40,8 @@ class MainView : public QWidget {
     Q_OBJECT
 public:
     explicit MainView(QWidget *parent = nullptr);
-        
+protected:
+    bool eventFilter(QObject* obj, QEvent* event) override;  
 private:
     QVBoxLayout *layout = nullptr;
     QGridLayout *main_layout = nullptr;
@@ -45,6 +49,7 @@ private:
     QSpinBox *input_change_threshold = nullptr;
     QSpinBox *input_validation_count = nullptr;
     QSpinBox *input_loop_delay = nullptr;
+    QWidget *overlay = nullptr;
     //Chart
     QLineSeries *series = nullptr;
     QChart *chart = nullptr;
@@ -58,11 +63,22 @@ private:
     QPushButton *btn_cancel = nullptr;
     QPushButton *btn_applay = nullptr;
 
-    QSvgWidget *svg_update = nullptr;
+    //QSvgWidget *svg_update = nullptr;
+    QSvgWidget *svg_ok = nullptr;
+
+    QGraphicsView* svg_update_view = nullptr;
+    QGraphicsSvgItem* svg_update_item = nullptr;
 
     //DBus
     DbusClient *dbus;
     Config origConfig;
+
+    //Timers
+    QTimer* watcherTimer = nullptr;
+    QTimer* rotationTimer = nullptr;
+
+    int rotationAngle = 0;
+    bool uiBlocked = false;
 
     static const short MAX_VALUE_12BIT_ADC = 4095;
 
@@ -70,7 +86,11 @@ private:
     int updateChart();
     int convertToValidNumber(const QString &text, int min, int max);
     void checkChangesWithConfig();
-    
+    void applayConfigToDemon();
+    void startRequestWatcher();
+
+    void startSvgUpdateAnimation();
+    void stopSvgUpdateAnimation();
 };
 
 #endif
