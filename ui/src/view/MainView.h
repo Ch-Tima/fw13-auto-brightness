@@ -29,6 +29,9 @@
 #include <QValueAxis>
 #include <QSvgWidget>
 #include <QGraphicsSvgItem>
+#include <QIcon>
+#include <QRect>
+#include <QRegion>
 
 #include <QtConcurrent>
 
@@ -62,6 +65,7 @@ private:
     QHBoxLayout *bottom_btn_layout = nullptr;
     QPushButton *btn_cancel = nullptr;
     QPushButton *btn_applay = nullptr;
+    QPushButton *btn_add_points = nullptr;
 
     //QSvgWidget *svg_update = nullptr;
     QSvgWidget *svg_ok = nullptr;
@@ -88,6 +92,8 @@ private:
     void checkChangesWithConfig();
     void applayConfigToDemon();
     void startRequestWatcher();
+
+    void insertNewPointToTable();
 
     void startSvgUpdateAnimation();
     void stopSvgUpdateAnimation();

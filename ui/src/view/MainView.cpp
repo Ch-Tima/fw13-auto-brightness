@@ -147,6 +147,28 @@ int MainView::init(){
     main_layout->addWidget(table, 1, 0, 2, 1);
     main_layout->setRowStretch(1, 1);  // таблица растягивается
 
+    btn_add_points = new QPushButton();
+    btn_add_points->setFixedSize(56, 56);
+    btn_add_points->setIcon(QIcon("../assets/add_circle_24dp.svg"));
+    btn_add_points->setIconSize(QSize(32, 32));
+    btn_add_points->setStyleSheet(
+        "QPushButton {"
+            "border-radius: 28px;"
+            "background-color: #272A2E;"
+        "}"
+        "QPushButton:hover {"
+            "background-color: #292C30;" 
+            "border: 1px solid #23A5D9;"
+        "}"
+    );
+    connect(btn_add_points, &QPushButton::released, this, &MainView::insertNewPointToTable);
+    QWidget *btn_container = new QWidget();
+    QHBoxLayout *btn_layout = new QHBoxLayout(btn_container);
+    btn_layout->addWidget(btn_add_points);
+    btn_layout->setContentsMargins(0, 0, 10, 10); // справа и снизу по 10px
+    btn_layout->setAlignment(Qt::AlignRight | Qt::AlignBottom);
+
+    main_layout->addWidget(btn_container, 1, 0, 2, 1);
     //Current il_value
     current_il_value = new QLabel("ilum:1475"); 
     main_layout->addWidget(current_il_value, 2, 1, 1, 1);
@@ -203,7 +225,7 @@ int MainView::init(){
     connect(btn_applay, &QPushButton::clicked, this, &MainView::applayConfigToDemon);
 
     overlay = new QWidget(this);
-    overlay->setStyleSheet("background-color: rgba(0,0,0,50%);");
+    overlay->setStyleSheet("background-color: rgba(0,0,0,25%);");
     overlay->setGeometry(this->rect());
     overlay->releaseKeyboard();
     overlay->raise();
@@ -399,4 +421,8 @@ bool MainView::eventFilter(QObject* obj, QEvent* event)
 
     // всё остальное пропускаем
     return QWidget::eventFilter(obj, event);
+}
+
+void MainView::insertNewPointToTable(){
+    qDebug() << "insertNewPointToTable";
 }

@@ -654,9 +654,11 @@ AutoBrightnessUI_autogen/timestamp: \
 	/usr/include/qt6/QtDBus/qtdbusglobal.h \
 	/usr/include/qt6/QtGui/QBrush \
 	/usr/include/qt6/QtGui/QFont \
+	/usr/include/qt6/QtGui/QIcon \
 	/usr/include/qt6/QtGui/QImage \
 	/usr/include/qt6/QtGui/QPalette \
 	/usr/include/qt6/QtGui/QPen \
+	/usr/include/qt6/QtGui/QRegion \
 	/usr/include/qt6/QtGui/QTransform \
 	/usr/include/qt6/QtGui/qaction.h \
 	/usr/include/qt6/QtGui/qbitmap.h \
