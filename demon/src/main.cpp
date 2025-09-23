@@ -223,7 +223,7 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) 
     AsyncData *data = new AsyncData{msg};
     sd_bus_message_ref(msg);
     std::thread([value, data]() {
-        std::this_thread::sleep_for(std::chrono::seconds(8));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
 
         {
             std::lock_guard<std::mutex> lock(conf.brakePointsMutex);

@@ -46,6 +46,7 @@ class DbusClient : public QObject {
         void setLoopDelay(quint16 value, Callback cb);
         void setValidationCount(quint8 value, Callback cb);
         void setChangeThreshold(quint16 value, Callback cb);
+        void updateBrakePoints(std::vector<vec2_u16> &brakePoints, Callback cb);
 
         uint16_t getRequestСountNow();
 

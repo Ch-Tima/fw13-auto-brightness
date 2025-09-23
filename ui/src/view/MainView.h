@@ -93,10 +93,13 @@ private:
     void applayConfigToDemon();
     void startRequestWatcher();
 
+    void insertNewPointToTable(quint16 il, quint16 br);
     void insertNewPointToTable();
 
     void startSvgUpdateAnimation();
     void stopSvgUpdateAnimation();
+
+    void sortListOfPoints();
 };
 
 #endif
