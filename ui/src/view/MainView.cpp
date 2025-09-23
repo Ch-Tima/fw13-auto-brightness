@@ -318,7 +318,31 @@ void MainView::applayConfigToDemon(){
     }
 
 
+    std::vector<vec2_u16> bp = {};
+    int rows = table->rowCount();
+    bp.reserve(rows);
+
+    for (int row = 0; row < rows; ++row) {
+        auto *edit1 = qobject_cast<QSpinBox*>(table->cellWidget(row, 0));
+        auto *edit2 = qobject_cast<QSpinBox*>(table->cellWidget(row, 1));
+
+        if (edit1 && edit2) {
+            vec2_u16 point;
+            point.il = static_cast<quint16>(edit1->value());
+            point.br = static_cast<quint16>(edit2->value()*100);
+            bp.push_back(point);
+        }
+    }
     
+    dbus->updateBrakePoints(bp, [this, bp](bool ok, const QString &msg) {
+        if(ok){
+            qDebug() << "OK >> updateBrakePoints";
+            origConfig.brakePoints = bp;
+        } else {
+            qDebug() << "fail >> updateBrakePoints. msg:" << msg;
+        }
+    });
+
     startRequestWatcher();
 }
 

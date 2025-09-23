@@ -147,7 +147,30 @@ void DbusClient::setValidationCount(quint8 value, Callback cb){
     );
 }
 
+void DbusClient::updateBrakePoints(std::vector<vec2_u16> &brakePoints, Callback cb){
+    requestСountNow++;
 
+    QList<vec2_u16> list;
+    for (const auto &p : brakePoints) {
+        list.append(p);
+    }
+
+    QDBusPendingCall asyncCall = interface.asyncCall("SetVectorBrakePoints", QVariant::fromValue(list));
+    QDBusPendingCallWatcher *watcher = new QDBusPendingCallWatcher(asyncCall, this);
+
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+        [watcher, cb, this](QDBusPendingCallWatcher *w) {
+            QDBusPendingReply<> reply = *w;
+            w->deleteLater();
+            if (reply.isError()) {
+                cb(false, reply.error().message());
+            } else {
+                cb(true, "ok");
+            }
+            requestСountNow--;
+        }
+    );
+}
 
 uint16_t DbusClient::getRequestСountNow(){
     return requestСountNow.load();
