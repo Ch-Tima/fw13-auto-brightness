@@ -1,7 +1,7 @@
 #include "view/MainView.h"
 
 
-MainView::MainView(QWidget *parent){
+MainView::MainView(QWidget *parent) : QWidget(parent), uiBlocked(false){
     init();
     this->installEventFilter(this);
     dbus = new DbusClient(this);
@@ -53,21 +53,7 @@ MainView::MainView(QWidget *parent){
             qDebug() << "Получено" << points.size() << "точек";
             for (vec2_u16 item : points) {
                 origConfig.brakePoints.push_back(item);
-                int row = table->rowCount();
-                table->insertRow(row);
-        
-                QSpinBox *edit1 = new QSpinBox();
-                edit1->setMaximum(MAX_VALUE_12BIT_ADC);
-                connect(edit1, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
-                QSpinBox *edit2 = new QSpinBox();
-                edit2->setMaximum(100);
-                connect(edit2, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
-
-                edit1->setValue(item.il);
-                edit2->setValue(item.br/100);
-
-                table->setCellWidget(row, 0, edit1);
-                table->setCellWidget(row, 1, edit2);
+                insertNewPointToTable(item.il, item.br/100);
                 series->append(item.br/100, item.il);
             }
             chart->update();
@@ -142,7 +128,9 @@ int MainView::init(){
 
     //QTableWidget
     table = new QTableWidget(0, 2);
-    table->setHorizontalHeaderLabels({"Value", "Brightness`%`"});
+    table->setHorizontalHeaderLabels({"Ilum", "Brightness`%`"});
+    table->setEditTriggers(QAbstractItemView::AllEditTriggers);
+    table->setSortingEnabled(true);
 
     main_layout->addWidget(table, 1, 0, 2, 1);
     main_layout->setRowStretch(1, 1);  // таблица растягивается
@@ -186,6 +174,24 @@ int MainView::init(){
     svg_ok->show();
     bottom_btn_layout->addWidget(svg_ok, Qt::AlignCenter);
 
+
+    btn_add_points = new QPushButton("AddPoint");
+    btn_add_points->setFixedSize(100, 30);
+    //btn_add_points->setIcon(QIcon("../assets/add_circle_24dp.svg"));
+    //btn_add_points->setIconSize(QSize(32, 32));
+    // btn_add_points->setStyleSheet(
+    //     "QPushButton {"
+    //         "border-radius: 28px;"
+    //         "background-color: #272A2E;"
+    //     "}"
+    //     "QPushButton:hover {"
+    //         "background-color: #292C30;" 
+    //         "border: 1px solid #23A5D9;"
+    //     "}"
+    // );
+    connect(btn_add_points, &QPushButton::released, this, [&](){insertNewPointToTable();});
+    bottom_btn_layout->addWidget(btn_add_points);
+
     btn_cancel = new QPushButton("Cancel");
     btn_cancel->setFixedSize(100, 30);
     bottom_btn_layout->addWidget(btn_cancel/*, 0, Qt::AlignRight */);
@@ -203,7 +209,8 @@ int MainView::init(){
     connect(btn_applay, &QPushButton::clicked, this, &MainView::applayConfigToDemon);
 
     overlay = new QWidget(this);
-    overlay->setStyleSheet("background-color: rgba(0,0,0,50%);");
+    overlay->installEventFilter(this);
+    overlay->setStyleSheet("background-color: rgba(0,0,0,85%);");
     overlay->setGeometry(this->rect());
     overlay->releaseKeyboard();
     overlay->raise();
@@ -236,6 +243,8 @@ void MainView::checkChangesWithConfig(){
     //Проверяет таблицу
     if(!result){
         //если удолена или новая запись
+        qDebug() << "rowCount:" << table->rowCount();
+        qDebug() << "brakePointsSize:" << static_cast<int>(origConfig.brakePoints.size());
         if (table->rowCount() != static_cast<int>(origConfig.brakePoints.size())) {
             result = true;
         }else{//проверка значений в таблице
@@ -263,7 +272,6 @@ void MainView::checkChangesWithConfig(){
 
     btn_applay->setEnabled(result);
 }
-
 
 void MainView::applayConfigToDemon(){
     svg_ok->hide();
@@ -308,6 +316,37 @@ void MainView::applayConfigToDemon(){
             }
         });
     }
+
+
+    std::vector<vec2_u16> bp = {};
+    int rows = table->rowCount();
+    bp.reserve(rows);
+
+    for (int row = 0; row < rows; ++row) {
+        auto *edit1 = qobject_cast<QSpinBox*>(table->cellWidget(row, 0));
+        auto *edit2 = qobject_cast<QSpinBox*>(table->cellWidget(row, 1));
+
+        if (edit1 && edit2) {
+            vec2_u16 point;
+            point.il = static_cast<quint16>(edit1->value());
+            point.br = static_cast<quint16>(edit2->value()*100);
+            bp.push_back(point);
+        }
+    }
+    
+    dbus->updateBrakePoints(bp, [this, bp](bool ok, const QString &msg) {
+        if(ok){
+            qDebug() << "OK >> updateBrakePoints";
+            origConfig.brakePoints = bp;
+            series->clear();//update chart
+            for (vec2_u16 item : origConfig.brakePoints) {
+                series->append(item.br/100, item.il);
+            }
+            chart->update();
+        } else {
+            qDebug() << "fail >> updateBrakePoints. msg:" << msg;
+        }
+    });
 
     startRequestWatcher();
 }
@@ -400,3 +439,56 @@ bool MainView::eventFilter(QObject* obj, QEvent* event)
     // всё остальное пропускаем
     return QWidget::eventFilter(obj, event);
 }
+
+void MainView::insertNewPointToTable(){
+    insertNewPointToTable(table->rowCount(), 100);
+}
+
+void MainView::insertNewPointToTable(quint16 il, quint16 br){
+    // временно выключаем сортировку, чтобы операции с индексами были безопасны
+    bool wasSorting = table->isSortingEnabled();
+    table->setSortingEnabled(false);
+
+    int row = table->rowCount();
+    table->insertRow(row);
+
+    // Item для сортировки (колонка 0)
+    QTableWidgetItem *item = new QTableWidgetItem;
+    // сразу задаём начальное значение для item (для корректной сортировки)
+    item->setData(Qt::EditRole, static_cast<int>(il));
+    table->setItem(row, 0, item);
+
+    QSpinBox *edit1 = new QSpinBox();
+    edit1->setMaximum(MAX_VALUE_12BIT_ADC);
+    // блокируем сигналы на время установки начального значения
+    {
+        QSignalBlocker b(edit1);
+        edit1->setValue(il);
+    }
+    table->setCellWidget(row, 0, edit1);
+    connect(edit1, QOverload<int>::of(&QSpinBox::valueChanged), this,
+        [this, item](int v) {
+            item->setData(Qt::EditRole, v);
+            sortListOfPoints();
+            checkChangesWithConfig();
+        });
+    
+
+    //edit2
+    QSpinBox *edit2 = new QSpinBox();
+    edit2->setMaximum(100);
+    edit2->setValue(br);
+    table->setCellWidget(row, 1, edit2);
+
+    connect(edit2, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
+
+    // вернуть сортировку в предыдущее состояние и выполнить сортировку один раз
+    table->setSortingEnabled(wasSorting);
+    if (wasSorting) sortListOfPoints();
+    checkChangesWithConfig();
+}
+
+void MainView::sortListOfPoints(){
+    table->sortItems(0, Qt::AscendingOrder);
+}
+

@@ -102,7 +102,7 @@ static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
 
     // Запускаем фоновый поток для "долгой" работы
     std::thread([value, data]() {
-        //std::this_thread::sleep_for(std::chrono::seconds(10)); // симуляция долгой операции
+        std::this_thread::sleep_for(std::chrono::seconds(2)); // симуляция долгой операции
 
         // Сохраняем результат
         conf.loopDelayMs = value;
@@ -165,7 +165,7 @@ static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error 
     sd_bus_message_ref(msg); // увеличиваем счетчик ссылок
 
     std::thread([v, data](){
-        //std::this_thread::sleep_for(std::chrono::seconds(1)); // симуляция долгой операции
+        std::this_thread::sleep_for(std::chrono::seconds(1)); // симуляция долгой операции
         conf.validationCount = v;
         // Отправляем ответ обратно в D-Bus
         sd_bus_reply_method_return(data->msg, nullptr);
@@ -223,7 +223,7 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) 
     AsyncData *data = new AsyncData{msg};
     sd_bus_message_ref(msg);
     std::thread([value, data]() {
-        std::this_thread::sleep_for(std::chrono::seconds(8));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         {
             std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
