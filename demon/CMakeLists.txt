@@ -8,13 +8,11 @@ pkg_check_modules(SYSTEMD REQUIRED libsystemd)
 
 set(SOURCES
     src/main.cpp
-    src/cpp/LoadConfig.cpp
     src/cpp/Config.cpp
 
 )
 
 set(HEADERS
-    src/h/LoadConfig.h
     src/h/vec2_u16.h
     src/h/Config.h
 )

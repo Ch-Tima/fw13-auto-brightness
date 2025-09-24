@@ -1,10 +1,13 @@
-#include <atomic>
-#include <mutex>
-#include <iostream>
-#include <vector>
+#include <atomic>    // std::atomic<T>
+#include <unistd.h>  // fsync
+#include <mutex>     // std::mutex
+#include <cstdio>    // std::remove, std::rename
+#include <vector>    // std::vector
 #include "vec2_u16.h"
-#include <fstream>
-#include "INIReader.h"
+#include <iostream> 
+#include <fstream>    // std::ofstream
+#include <fcntl.h>
+#include "INIReader.h"// INIReader
 
 struct Config
 {
@@ -26,7 +29,10 @@ struct Config
         { 3355, 10000 },
     };
 
+    std::mutex saveMutex;
+
     bool loadFromIni(const std::string& filename);
     bool saveToIni(const std::string& filename);
+    bool saveToIniAtomic(const std::string& filename);
     bool createDefault(const std::string& filename);
 };

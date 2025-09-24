@@ -9,8 +9,8 @@ bool Config::loadFromIni(const std::string& filename){
     }
 
     changeThreshold = reader.GetInteger("tuning", "changeThreshold", 50);
-    changeThreshold = reader.GetInteger("tuning", "validationCount", 3);
-    changeThreshold = reader.GetInteger("tuning", "loopDelayMs", 500);
+    validationCount = reader.GetInteger("tuning", "validationCount", 3);
+    loopDelayMs = reader.GetInteger("tuning", "loopDelayMs", 500);
     
     {
         std::lock_guard<std::mutex> lock(brakePointsMutex);
@@ -45,6 +45,45 @@ bool Config::saveToIni(const std::string& filename){
         file << "brakePoints" << i << "=" << brakePoints[i].x << ',' << brakePoints[i].y << "\n";
     }
     return true;
+}
+
+bool Config::saveToIniAtomic(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(saveMutex); // защита от параллельных вызовов
+    std::string tmpFile = filename + ".tmp";
+    {
+        std::ofstream file(tmpFile);
+        if (!file.is_open()) return false;
+
+        file << "[tuning]\n";
+        file << "changeThreshold=" << (int)changeThreshold.load() << "\n";
+        file << "validationCount=" << (int)validationCount.load() << "\n";
+        file << "loopDelayMs=" << (int)loopDelayMs.load() << "\n\n";
+
+        file << "[brakePoints]\n";
+        for(int i = 0; i < brakePoints.size(); i++){
+            std::lock_guard<std::mutex> lock(brakePointsMutex);
+            file << "brakePoints" << i << "=" << brakePoints[i].x << ',' << brakePoints[i].y << "\n";
+        }
+
+        file.flush();//выталкиваем из буфера C++ в ОС
+        //fileno(FILE*) обычно конвертирует FILE* > int
+
+        // Получаем дескриптор через FILE* 
+        FILE* fp = fopen(tmpFile.c_str(), "r");
+        if (fp) {//запиши все данные и метаданные файла (размер, время изменения) на диск прямо сейчас.
+            int fd = fileno(fp);
+            if (fd != -1) fsync(fd);//выталкиваем из буфера ОС на диск
+            fclose(fp);
+        }
+    }
+
+    if (std::rename(tmpFile.c_str(), filename.c_str()) != 0) {
+        std::perror("rename failed");
+        std::remove(tmpFile.c_str());
+        return false;
+    }
+    return true;
+
 }
 
 bool Config::createDefault(const std::string& filename){
