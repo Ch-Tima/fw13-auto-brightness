@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <vector>
+#include <functional>
+#include <atomic>
 
 #include <QObject>
 #include <QDBusInterface>
@@ -13,11 +15,10 @@
 #include <QMetaType>
 #include <QList>
 #include <QVariant>
+#include <QThread>
 
-struct vec2_u16 {
-    quint16 il;
-    quint16 br;
-};
+#include "../h/vec2_u16.h"
+#include "../h/Config.h"
 
 Q_DECLARE_METATYPE(vec2_u16)
 
@@ -30,13 +31,24 @@ class DbusClient : public QObject {
     Q_OBJECT
     private:
         QDBusInterface interface;
+        std::atomic<uint16_t> requestСountNow{0};
     public:
         explicit DbusClient(QObject *parent = nullptr);
+        
+        using Callback = std::function<void(bool success, const QString &msg)>;
+
         void requestIlluminance();
         void requestLoopDelayMs();
         void requestTHR();
         void requestValidationCount();
         void requestPoints();
+
+        void setLoopDelay(quint16 value, Callback cb);
+        void setValidationCount(quint8 value, Callback cb);
+        void setChangeThreshold(quint16 value, Callback cb);
+        void updateBrakePoints(std::vector<vec2_u16> &brakePoints, Callback cb);
+
+        uint16_t getRequestСountNow();
 
     signals:
         void illuminanceReceived(short value);
