@@ -338,6 +338,11 @@ void MainView::applayConfigToDemon(){
         if(ok){
             qDebug() << "OK >> updateBrakePoints";
             origConfig.brakePoints = bp;
+            series->clear();//update chart
+            for (vec2_u16 item : origConfig.brakePoints) {
+                series->append(item.br/100, item.il);
+            }
+            chart->update();
         } else {
             qDebug() << "fail >> updateBrakePoints. msg:" << msg;
         }
