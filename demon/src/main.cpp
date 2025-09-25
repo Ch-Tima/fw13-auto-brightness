@@ -106,6 +106,9 @@ static int method_set_loopDelayMs(sd_bus_message *msg, void *, sd_bus_error *){
 
         // Сохраняем результат
         conf.loopDelayMs = value;
+        if(conf.saveToIniAtomic(CONFIG)){
+            std::cout << "Successful save config (method_set_loopDelayMs).\n";
+        }else  std::cout << "Failed save config (method_set_loopDelayMs).\n";
 
         // Отправляем ответ обратно в D-Bus
         sd_bus_reply_method_return(data->msg, nullptr);
@@ -138,6 +141,9 @@ static int method_set_changeThreshold(sd_bus_message *msg, void *, sd_bus_error 
     std::thread([value, data](){
         std::cout << "[D-BUS] SetChangeThreshold called, value=" << value << std::endl;
         conf.changeThreshold = value;
+        if(conf.saveToIniAtomic(CONFIG)){
+            std::cout << "Successful save config (method_set_changeThreshold).\n";
+        }else  std::cout << "Failed save config (method_set_changeThreshold).\n";
         // Отправляем ответ обратно в D-Bus
         sd_bus_reply_method_return(data->msg, nullptr);
         sd_bus_message_unref(data->msg); // освобождаем сообщение
@@ -167,6 +173,9 @@ static int method_set_validationCount(sd_bus_message *msg, void *, sd_bus_error 
     std::thread([v, data](){
         std::this_thread::sleep_for(std::chrono::seconds(1)); // симуляция долгой операции
         conf.validationCount = v;
+        if(conf.saveToIniAtomic(CONFIG)){
+            std::cout << "Successful save config (method_set_validationCount).\n";
+        }else  std::cout << "Failed save config (method_set_validationCount).\n";
         // Отправляем ответ обратно в D-Bus
         sd_bus_reply_method_return(data->msg, nullptr);
         sd_bus_message_unref(data->msg); // освобождаем сообщение
@@ -229,8 +238,10 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) 
             std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
             conf.brakePoints = value;
         }
-
         std::cout << "[D-BUS] SetVectorBrakePoints finished, size=" << value.size() << std::endl;
+        if(conf.saveToIniAtomic(CONFIG)){
+            std::cout << "Successful save config (method_set_brake_points).\n";
+        }else  std::cout << "Failed save config (method_set_brake_points).\n";
         //send
         sd_bus_reply_method_return(data->msg, nullptr);
         sd_bus_message_unref(data->msg);
@@ -410,8 +421,8 @@ int main(){
     sd_bus_unref(bus);
 
     if(conf.saveToIni(CONFIG)){
-        std::cout << "Successful save config.\n";
-    }else  std::cout << "Failed save config.\n";
+        std::cout << "Successful save config (MAIN).\n";
+    }else  std::cout << "Failed save config (MAIN).\n";
 
     w.wait();
     return OK;
