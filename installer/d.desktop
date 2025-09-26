@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=AutoBrightness
+Comment=Configure and control the AutoBrightnessIluminance daemon
+Exec=?EP
+Icon=?IC
+Terminal=false 
+Type=Application
+Categories=System;
+
+# Ch-Tima
