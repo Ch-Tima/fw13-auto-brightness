@@ -6,6 +6,7 @@ if [ $(whoami) != 'root' ]; then
 fi
 
 REAL_USER=${SUDO_USER:-$USER}
+USER_ID=$(id -u "$REAL_USER")
 WHERE_INSTALL="${1}/autobrightnessiluminance"
 FILE_SERVICE=""
 FILE_DESKTOP=""
@@ -26,6 +27,11 @@ while read -r line; do
     if [[ $line == *"?WD"* ]];then 
         line="${line/'?'WD/"$WHERE_INSTALL"}"
     fi
+
+    if [[ $line == *"?ID"* ]]; then
+        line="${line/'?'ID/"$USER_ID"}"
+    fi
+
     FILE_SERVICE="${FILE_SERVICE}${line}"$'\n'
 done < e.service
 
@@ -42,15 +48,18 @@ sudo systemctl enable autobrightness.service
 sudo systemctl start autobrightness.service
 systemctl is-active --quiet autobrightness.service && echo "Service started successfully"
 
+#MAKE DIR
 mkdir -p "${WHERE_INSTALL}/bin"
 mkdir -p "${WHERE_INSTALL}/res"
-
+mkdir -p "/home/${REAL_USER}/.config/autobrightness/"
+#BIN UI
 echo "Install AutoBrightnessUI"
 cp AutoBrightnessUI "${WHERE_INSTALL}/bin"
 chmod 755 "${WHERE_INSTALL}/bin/AutoBrightnessUI" 
-cp aib.conf "${WHERE_INSTALL}/bin"
-chmod 644 "${WHERE_INSTALL}/bin/aib.conf" 
-
+#CONFIG
+cp aib.conf "/home/${REAL_USER}/.config/autobrightness"
+chmod 644 "/home/${REAL_USER}/.config/autobrightness/aib.conf" 
+#RES
 echo "Copy res"
 cp icon.png "${WHERE_INSTALL}/res"
 chmod 755 "${WHERE_INSTALL}/res/icon.png" 
