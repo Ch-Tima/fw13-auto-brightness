@@ -22,7 +22,7 @@ using namespace std;
 #define INVALID_ARG 1
 #define OUT_OF_RANGE 2
 
-static const string CONFIG = "aib.conf";
+static string CONFIG = "aib.conf";
 
 // Structure to hold conversion result: value and status
 struct to_unit16t
@@ -359,8 +359,11 @@ void do_work(){
 
 }
 
-int main(){
-
+int main(int argc, char *argv[]){
+    if(argc > 1){
+        CONFIG = argv[1];
+    }
+    
     std::cout << "START: ABI" << std::endl;
 
     uint8_t itry = 0;
