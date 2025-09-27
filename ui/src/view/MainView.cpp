@@ -194,6 +194,7 @@ int MainView::init(){
 
     btn_cancel = new QPushButton("Cancel");
     btn_cancel->setFixedSize(100, 30);
+    btn_cancel->setEnabled(false);
     bottom_btn_layout->addWidget(btn_cancel/*, 0, Qt::AlignRight */);
     btn_applay = new QPushButton("Aplay");
     btn_applay->setFixedSize(100, 30);
@@ -207,6 +208,7 @@ int MainView::init(){
     checkChangesWithConfig();
 
     connect(btn_applay, &QPushButton::clicked, this, &MainView::applayConfigToDemon);
+    connect(btn_cancel, &QPushButton::clicked, this, &MainView::resetFields);
 
     overlay = new QWidget(this);
     overlay->installEventFilter(this);
@@ -271,12 +273,14 @@ void MainView::checkChangesWithConfig(){
     }else svg_ok->hide();
 
     btn_applay->setEnabled(result);
+    btn_cancel->setEnabled(result);
 }
 
 void MainView::applayConfigToDemon(){
     svg_ok->hide();
     //svg_update->show();
-    btn_applay->setEnabled(false); // блокируем кнопку
+    btn_applay->setEnabled(false);
+    btn_cancel->setEnabled(false); // блокируем кнопку
 
     if(input_loop_delay->value() != origConfig.loopDelayMs) {
         quint16 ld = static_cast<quint16>(input_loop_delay->value());
@@ -349,6 +353,21 @@ void MainView::applayConfigToDemon(){
     });
 
     startRequestWatcher();
+}
+
+void MainView::resetFields(){
+    input_loop_delay->setValue(origConfig.loopDelayMs);
+    input_change_threshold->setValue(origConfig.changeThreshold);
+    input_validation_count->setValue(origConfig.validationCount);
+    series->clear();
+    table->setRowCount(0);
+    for (vec2_u16 item : origConfig.brakePoints) {
+        table->removeRow(table->rowCount());
+        insertNewPointToTable(item.il, item.br/100);
+        series->append(item.br/100, item.il);
+    }
+    chart->update();
+    checkChangesWithConfig();
 }
 
 void MainView::startRequestWatcher(){
@@ -491,4 +510,3 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
 void MainView::sortListOfPoints(){
     table->sortItems(0, Qt::AscendingOrder);
 }
-
