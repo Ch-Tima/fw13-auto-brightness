@@ -91,6 +91,10 @@ private:
     int convertToValidNumber(const QString &text, int min, int max);
     void checkChangesWithConfig();
     void applayConfigToDemon();
+    /*
+        Method for resetting all fields to their initial values ​​from origConfig:Config
+    */
+    void resetFields();
     void startRequestWatcher();
 
     void insertNewPointToTable(quint16 il, quint16 br);
