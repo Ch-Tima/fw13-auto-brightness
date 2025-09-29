@@ -491,7 +491,6 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
             sortListOfPoints();
             checkChangesWithConfig();
         });
-    
 
     //edit2
     QSpinBox *edit2 = new QSpinBox();
@@ -500,23 +499,30 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
     table->setCellWidget(row, 1, edit2);
 
 
+    // Create a delete button (QToolButton is better for icons than QPushButton)
     QToolButton *btn_del = new QToolButton();
     btn_del->setIcon(QIcon("../assets/delete_24dp.svg"));
     btn_del->setIconSize(QSize(16, 16));
     btn_del->setFixedSize(26, 26);
 
+    // Create a QWidget container for the cell
     QWidget *cellWidget = new QWidget();
+    // Use QHBoxLayout to center the button inside the cell
     QHBoxLayout *layout = new QHBoxLayout(cellWidget);
     layout->addWidget(btn_del);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setAlignment(Qt::AlignCenter);
     cellWidget->setLayout(layout);
-
+    //Place this QWidget (with the button inside) into the table cell (column 2)
     table->setCellWidget(row, 2, cellWidget);
+    //Adjust the column width automatically to fit the button
     table->resizeColumnToContents(2);
 
-    connect(btn_del, &QPushButton::clicked, this, [](){
-        
+    // Connect the button click signal to a lambda
+    connect(btn_del, &QPushButton::clicked, this, [=](){
+        //find the current row index by asking the table for the row of our cellWidget
+        int row = table->indexAt(cellWidget->pos()).row();
+        if (row >= 0) removePointFromTable(row);// remove the row
     });
 
     connect(edit2, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
@@ -525,6 +531,11 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
     table->setSortingEnabled(wasSorting);
     if (wasSorting) sortListOfPoints();
     checkChangesWithConfig();
+}
+
+void MainView::removePointFromTable(int row){
+    table->removeRow(row);//remove point from table
+    checkChangesWithConfig();//update ui (aplay/cancle)
 }
 
 void MainView::sortListOfPoints(){

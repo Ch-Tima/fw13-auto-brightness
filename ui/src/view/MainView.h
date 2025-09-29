@@ -100,8 +100,9 @@ private:
     void resetFields();
     void startRequestWatcher();
 
-    void insertNewPointToTable(quint16 il, quint16 br);
     void insertNewPointToTable();
+    void insertNewPointToTable(quint16 il, quint16 br);
+    void removePointFromTable(int row);
 
     void startSvgUpdateAnimation();
     void stopSvgUpdateAnimation();
