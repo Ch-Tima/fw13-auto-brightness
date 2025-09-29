@@ -18,8 +18,9 @@
 #include<QTableWidget>
 #include<QLabel>
 
-#include<QHBoxLayout>
-#include<QPushButton>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QToolButton>
 
 #include <QDBusArgument>
 #include <QMetaType>
@@ -32,6 +33,8 @@
 #include <QIcon>
 #include <QRect>
 #include <QRegion>
+
+#include <QHeaderView>
 
 #include <QtConcurrent>
 
@@ -97,8 +100,9 @@ private:
     void resetFields();
     void startRequestWatcher();
 
-    void insertNewPointToTable(quint16 il, quint16 br);
     void insertNewPointToTable();
+    void insertNewPointToTable(quint16 il, quint16 br);
+    void removePointFromTable(int row);
 
     void startSvgUpdateAnimation();
     void stopSvgUpdateAnimation();
