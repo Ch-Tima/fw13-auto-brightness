@@ -127,8 +127,8 @@ int MainView::init(){
     main_layout->addWidget(chartView, 0, 1, 2, 1);
 
     //QTableWidget
-    table = new QTableWidget(0, 2);
-    table->setHorizontalHeaderLabels({"Ilum", "Brightness`%`"});
+    table = new QTableWidget(0, 3);
+    table->setHorizontalHeaderLabels({"Ilum", "Brightness`%`", "x"});
     table->setEditTriggers(QAbstractItemView::AllEditTriggers);
     table->setSortingEnabled(true);
 
@@ -498,6 +498,26 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
     edit2->setMaximum(100);
     edit2->setValue(br);
     table->setCellWidget(row, 1, edit2);
+
+
+    QToolButton *btn_del = new QToolButton();
+    btn_del->setIcon(QIcon("../assets/delete_24dp.svg"));
+    btn_del->setIconSize(QSize(16, 16));
+    btn_del->setFixedSize(26, 26);
+
+    QWidget *cellWidget = new QWidget();
+    QHBoxLayout *layout = new QHBoxLayout(cellWidget);
+    layout->addWidget(btn_del);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setAlignment(Qt::AlignCenter);
+    cellWidget->setLayout(layout);
+
+    table->setCellWidget(row, 2, cellWidget);
+    table->resizeColumnToContents(2);
+
+    connect(btn_del, &QPushButton::clicked, this, [](){
+        
+    });
 
     connect(edit2, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
 

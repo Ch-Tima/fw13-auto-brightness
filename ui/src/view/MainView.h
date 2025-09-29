@@ -18,8 +18,9 @@
 #include<QTableWidget>
 #include<QLabel>
 
-#include<QHBoxLayout>
-#include<QPushButton>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QToolButton>
 
 #include <QDBusArgument>
 #include <QMetaType>
@@ -32,6 +33,8 @@
 #include <QIcon>
 #include <QRect>
 #include <QRegion>
+
+#include <QHeaderView>
 
 #include <QtConcurrent>
 
