@@ -1,4 +1,7 @@
-# fw13-auto-brightness
+[![status: experimental](https://img.shields.io/badge/status-experimental-orange)]()
+[![limited](https://img.shields.io/badge/version-test--build-red)]()
+
+# fw13-auto-brightness 🚧 (v0.1-beta)
 
 <img src="readme/icons/icon.svg" align="left" width="50" style="padding-right: .75em;" />
 
