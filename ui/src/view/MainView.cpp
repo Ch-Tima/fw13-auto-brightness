@@ -160,7 +160,7 @@ int MainView::init(){
     
 
     QGraphicsScene* scene = new QGraphicsScene(this);
-    svg_update_item = new QGraphicsSvgItem("../assets/update_24dp.svg");
+    svg_update_item = new QGraphicsSvgItem(":/icons/update_24dp.svg");
     svg_update_item->setFlags(QGraphicsItem::ItemClipsToShape);
     svg_update_item->setCacheMode(QGraphicsItem::NoCache);
     svg_update_item->setZValue(0);
@@ -178,12 +178,12 @@ int MainView::init(){
     svg_update_view->setSceneRect(svg_update_item->boundingRect());
     bottom_btn_layout->addWidget(svg_update_view, Qt::AlignCenter);
 
-    // svg_update = new QSvgWidget("../assets/update_24dp.svg");
+    // svg_update = new QSvgWidget(":/icons/update_24dp.svg");
     // svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     // svg_update->hide();
     // bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
 
-    svg_ok = new QSvgWidget("../assets/check_circle_24dp.svg");
+    svg_ok = new QSvgWidget(":/icons/check_circle_24dp.svg");
     svg_ok->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     svg_ok->show();
     bottom_btn_layout->addWidget(svg_ok, Qt::AlignCenter);
@@ -191,7 +191,7 @@ int MainView::init(){
 
     btn_add_points = new QPushButton("AddPoint");
     btn_add_points->setFixedSize(100, 30);
-    //btn_add_points->setIcon(QIcon("../assets/add_circle_24dp.svg"));
+    //btn_add_points->setIcon(QIcon(":/icons/add_circle_24dp.svg"));
     //btn_add_points->setIconSize(QSize(32, 32));
     // btn_add_points->setStyleSheet(
     //     "QPushButton {"
@@ -515,7 +515,7 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
 
     // Create a delete button (QToolButton is better for icons than QPushButton)
     QToolButton *btn_del = new QToolButton();
-    btn_del->setIcon(QIcon("../assets/delete_24dp.svg"));
+    btn_del->setIcon(QIcon(":/icons/delete_24dp.svg"));
     btn_del->setIconSize(QSize(16, 16));
     btn_del->setFixedSize(26, 26);
 

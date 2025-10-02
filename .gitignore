@@ -10,13 +10,4 @@ demon/build/compile_commands.json
 demon/build/.cmake
 
 
-ui/build/CMakeFiles
-ui/build/cmake_install.cmake
-ui/build/CMakeCache.txt
-ui/build/Makefile
-ui/build/build.ninja
-ui/build/compile_commands.json
-ui/build/.cmake
-ui/build/AutoBrightnessUI_autogen/mocs_compilation.cpp
-ui/build/AutoBrightnessUI_autogen/deps
-ui/build/AutoBrightnessUI_autogen/
+ui/build

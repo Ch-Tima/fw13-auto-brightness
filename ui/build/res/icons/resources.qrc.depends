@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>add_circle_24dp.svg</file>
+        <file>check_circle_24dp.svg</file>
+        <file>delete_24dp.svg</file>
+        <file>remove_24dp.svg</file>
+        <file>update_24dp.svg</file>
+    </qresource>
+</RCC>
