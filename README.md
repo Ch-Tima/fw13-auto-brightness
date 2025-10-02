@@ -32,7 +32,10 @@ fw13-auto-brightness
 └── README.md
 ```
 
-## Development environment
+<h2>
+<img src="readme/icons/device.svg">
+Development environment
+</h2>
 
 The project was originally developed on Arch Linux (KDE Plasma).
 
@@ -91,6 +94,7 @@ The script will:
 <img src="readme/icons/construction.svg">
 Contributing
 </h2>
+
 ### PRs and bug reports are welcome ;)
 
 Planned:
