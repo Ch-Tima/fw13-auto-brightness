@@ -1,5 +1,19 @@
-#include "view/MainView.h"
+/*
+ * fw13-auto-brightness
+ * Part of fw13-auto-brightness project (AutoBrightnessUI / AutoBrightnessIluminance)
+ * Copyright (C) 2025  <Ch-Tima>
+ *
+ * This program is free software: you can redistribute it and/or modify 
+ * it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
+#include "view/MainView.h"
 
 MainView::MainView(QWidget *parent) : QWidget(parent), uiBlocked(false){
     init();
@@ -127,8 +141,8 @@ int MainView::init(){
     main_layout->addWidget(chartView, 0, 1, 2, 1);
 
     //QTableWidget
-    table = new QTableWidget(0, 2);
-    table->setHorizontalHeaderLabels({"Ilum", "Brightness`%`"});
+    table = new QTableWidget(0, 3);
+    table->setHorizontalHeaderLabels({"Ilum", "Brightness`%`", "x"});
     table->setEditTriggers(QAbstractItemView::AllEditTriggers);
     table->setSortingEnabled(true);
 
@@ -146,7 +160,7 @@ int MainView::init(){
     
 
     QGraphicsScene* scene = new QGraphicsScene(this);
-    svg_update_item = new QGraphicsSvgItem("../assets/update_24dp.svg");
+    svg_update_item = new QGraphicsSvgItem(":/icons/update_24dp.svg");
     svg_update_item->setFlags(QGraphicsItem::ItemClipsToShape);
     svg_update_item->setCacheMode(QGraphicsItem::NoCache);
     svg_update_item->setZValue(0);
@@ -164,12 +178,12 @@ int MainView::init(){
     svg_update_view->setSceneRect(svg_update_item->boundingRect());
     bottom_btn_layout->addWidget(svg_update_view, Qt::AlignCenter);
 
-    // svg_update = new QSvgWidget("../assets/update_24dp.svg");
+    // svg_update = new QSvgWidget(":/icons/update_24dp.svg");
     // svg_update->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     // svg_update->hide();
     // bottom_btn_layout->addWidget(svg_update, Qt::AlignCenter);
 
-    svg_ok = new QSvgWidget("../assets/check_circle_24dp.svg");
+    svg_ok = new QSvgWidget(":/icons/check_circle_24dp.svg");
     svg_ok->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     svg_ok->show();
     bottom_btn_layout->addWidget(svg_ok, Qt::AlignCenter);
@@ -177,7 +191,7 @@ int MainView::init(){
 
     btn_add_points = new QPushButton("AddPoint");
     btn_add_points->setFixedSize(100, 30);
-    //btn_add_points->setIcon(QIcon("../assets/add_circle_24dp.svg"));
+    //btn_add_points->setIcon(QIcon(":/icons/add_circle_24dp.svg"));
     //btn_add_points->setIconSize(QSize(32, 32));
     // btn_add_points->setStyleSheet(
     //     "QPushButton {"
@@ -194,6 +208,7 @@ int MainView::init(){
 
     btn_cancel = new QPushButton("Cancel");
     btn_cancel->setFixedSize(100, 30);
+    btn_cancel->setEnabled(false);
     bottom_btn_layout->addWidget(btn_cancel/*, 0, Qt::AlignRight */);
     btn_applay = new QPushButton("Aplay");
     btn_applay->setFixedSize(100, 30);
@@ -207,6 +222,7 @@ int MainView::init(){
     checkChangesWithConfig();
 
     connect(btn_applay, &QPushButton::clicked, this, &MainView::applayConfigToDemon);
+    connect(btn_cancel, &QPushButton::clicked, this, &MainView::resetFields);
 
     overlay = new QWidget(this);
     overlay->installEventFilter(this);
@@ -271,12 +287,14 @@ void MainView::checkChangesWithConfig(){
     }else svg_ok->hide();
 
     btn_applay->setEnabled(result);
+    btn_cancel->setEnabled(result);
 }
 
 void MainView::applayConfigToDemon(){
     svg_ok->hide();
     //svg_update->show();
-    btn_applay->setEnabled(false); // блокируем кнопку
+    btn_applay->setEnabled(false);
+    btn_cancel->setEnabled(false); // блокируем кнопку
 
     if(input_loop_delay->value() != origConfig.loopDelayMs) {
         quint16 ld = static_cast<quint16>(input_loop_delay->value());
@@ -349,6 +367,21 @@ void MainView::applayConfigToDemon(){
     });
 
     startRequestWatcher();
+}
+
+void MainView::resetFields(){
+    input_loop_delay->setValue(origConfig.loopDelayMs);
+    input_change_threshold->setValue(origConfig.changeThreshold);
+    input_validation_count->setValue(origConfig.validationCount);
+    series->clear();
+    table->setRowCount(0);
+    for (vec2_u16 item : origConfig.brakePoints) {
+        table->removeRow(table->rowCount());
+        insertNewPointToTable(item.il, item.br/100);
+        series->append(item.br/100, item.il);
+    }
+    chart->update();
+    checkChangesWithConfig();
 }
 
 void MainView::startRequestWatcher(){
@@ -472,13 +505,39 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
             sortListOfPoints();
             checkChangesWithConfig();
         });
-    
 
     //edit2
     QSpinBox *edit2 = new QSpinBox();
     edit2->setMaximum(100);
     edit2->setValue(br);
     table->setCellWidget(row, 1, edit2);
+
+
+    // Create a delete button (QToolButton is better for icons than QPushButton)
+    QToolButton *btn_del = new QToolButton();
+    btn_del->setIcon(QIcon(":/icons/delete_24dp.svg"));
+    btn_del->setIconSize(QSize(16, 16));
+    btn_del->setFixedSize(26, 26);
+
+    // Create a QWidget container for the cell
+    QWidget *cellWidget = new QWidget();
+    // Use QHBoxLayout to center the button inside the cell
+    QHBoxLayout *layout = new QHBoxLayout(cellWidget);
+    layout->addWidget(btn_del);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setAlignment(Qt::AlignCenter);
+    cellWidget->setLayout(layout);
+    //Place this QWidget (with the button inside) into the table cell (column 2)
+    table->setCellWidget(row, 2, cellWidget);
+    //Adjust the column width automatically to fit the button
+    table->resizeColumnToContents(2);
+
+    // Connect the button click signal to a lambda
+    connect(btn_del, &QPushButton::clicked, this, [=](){
+        //find the current row index by asking the table for the row of our cellWidget
+        int row = table->indexAt(cellWidget->pos()).row();
+        if (row >= 0) removePointFromTable(row);// remove the row
+    });
 
     connect(edit2, &QSpinBox::valueChanged, this, &MainView::checkChangesWithConfig);
 
@@ -488,7 +547,11 @@ void MainView::insertNewPointToTable(quint16 il, quint16 br){
     checkChangesWithConfig();
 }
 
+void MainView::removePointFromTable(int row){
+    table->removeRow(row);//remove point from table
+    checkChangesWithConfig();//update ui (aplay/cancle)
+}
+
 void MainView::sortListOfPoints(){
     table->sortItems(0, Qt::AscendingOrder);
 }
-

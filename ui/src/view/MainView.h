@@ -1,3 +1,18 @@
+/*
+ * fw13-auto-brightness
+ * Part of fw13-auto-brightness project (AutoBrightnessUI / AutoBrightnessIluminance)
+ * Copyright (C) 2025  <Ch-Tima>
+ *
+ * This program is free software: you can redistribute it and/or modify 
+ * it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #ifndef MAINVIEW_H
 #define MAINVIEW_H
 
@@ -18,8 +33,9 @@
 #include<QTableWidget>
 #include<QLabel>
 
-#include<QHBoxLayout>
-#include<QPushButton>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QToolButton>
 
 #include <QDBusArgument>
 #include <QMetaType>
@@ -32,6 +48,8 @@
 #include <QIcon>
 #include <QRect>
 #include <QRegion>
+
+#include <QHeaderView>
 
 #include <QtConcurrent>
 
@@ -91,10 +109,15 @@ private:
     int convertToValidNumber(const QString &text, int min, int max);
     void checkChangesWithConfig();
     void applayConfigToDemon();
+    /*
+        Method for resetting all fields to their initial values ​​from origConfig:Config
+    */
+    void resetFields();
     void startRequestWatcher();
 
-    void insertNewPointToTable(quint16 il, quint16 br);
     void insertNewPointToTable();
+    void insertNewPointToTable(quint16 il, quint16 br);
+    void removePointFromTable(int row);
 
     void startSvgUpdateAnimation();
     void stopSvgUpdateAnimation();
