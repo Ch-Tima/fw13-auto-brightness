@@ -24,11 +24,20 @@
 #include <fcntl.h>
 #include "INIReader.h"// INIReader
 
+#include "ExApp.h"
+
 struct Config
 {
     std::atomic<uint16_t> changeThreshold{50};
     std::atomic<uint8_t> validationCount{3};
     std::atomic<uint16_t> loopDelayMs {500};
+
+    std::vector<ExApp> exApps{
+        {
+            "minecraft",
+            100
+        }
+    };
 
     std::mutex brakePointsMutex;
     std::vector<vec2_u16> brakePoints

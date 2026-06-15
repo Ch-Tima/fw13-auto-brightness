@@ -1,0 +1,21 @@
+{
+    "KPlugin": {
+        "Name": "AIB",
+        "Description": "Description of the script",
+        "Icon": "preferences-system-windows",
+        
+        "Authors": [
+            {
+                "Email": "ch-tima@gmail.com",
+                "Name": "Ch-Tima"
+            }
+        ],
+        "Id": "getactwin",
+        "Version": "1.0",
+        "License": "GPLv3",
+        "Website": "https://github.com/ch-tima"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js",
+    "KPackageStructure": "KWin/Script"
+}

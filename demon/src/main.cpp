@@ -1,5 +1,5 @@
 /*
- * fw13-auto-brightness\
+ * fw13-auto-brightness
  * Part of fw13-auto-brightness project (AutoBrightnessUI / AutoBrightnessIluminance)
  * Copyright (C) 2025  <Ch-Tima>
  *
@@ -22,11 +22,14 @@
 #include <vector>
 #include <future>
 #include <mutex>
+#include <algorithm>
 
 #include "h/Config.h"
 
 #include <systemd/sd-bus.h>
 #include <systemd/sd-device.h>
+
+#include <csignal>
 
 #include "h/vec2_u16.h"
 
@@ -66,10 +69,13 @@ to_unit16t stringToUint16t(string s){
 }
 
 static Config conf;
-static atomic<uint16_t> take{UINT16_MAX};
+static atomic<bool> main_running{true};
+static atomic<bool> worker_running{true};
+static atomic<int64_t> last_work_ts{0};
 static atomic<uint8_t> count_check{0};
 static atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static atomic<uint16_t> il_value{0};// Illuminance sensor value
+//static atomic<ExApp> exAppNow{};
 
 uint16_t cal(double mX){
     std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
@@ -265,6 +271,32 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) 
     return 1; // async
 }
 
+static int method_give_active_win(sd_bus_message *msg, void *, sd_bus_error *err){
+
+    const char *val = nullptr;
+    int r = sd_bus_message_read(msg, "s", &val);
+
+    if (r < 0){
+        return r;
+    }
+
+    std::string str = val;
+
+    std::cout << str << std::endl;
+        
+    std::transform(
+        str.begin(), 
+        str.end(), 
+        str.begin(),
+        [](unsigned char c) {
+            return std::toupper(c);
+        }
+    );
+
+    std::cout << str << std::endl;
+
+    return sd_bus_reply_method_return(msg, nullptr);
+}
 
 static const sd_bus_vtable demo_vtable[] = {
     SD_BUS_VTABLE_START(0),
@@ -282,9 +314,18 @@ static const sd_bus_vtable demo_vtable[] = {
     //get|set VectorBrakePoints
     SD_BUS_METHOD("GetVectorBrakePoints", "", "a(qq)", method_get_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_METHOD("SetVectorBrakePoints", "a(qq)", "", method_set_brake_points, SD_BUS_VTABLE_UNPRIVILEGED),
+    //say_me What is the active window
+    SD_BUS_METHOD("GiveMeActiveWin", "s", "", method_give_active_win, SD_BUS_VTABLE_UNPRIVILEGED),
     SD_BUS_VTABLE_END
 };
 
+void signal_handler(int signal){
+    std::cout << "System signal: " << signal << " - ";
+
+    //Stop
+    main_running = false;
+    worker_running = false;
+}
 
 void do_work(){
     //do_work работа над получением in_illuminance_raw и изменения яркости экрана 
@@ -299,8 +340,8 @@ void do_work(){
         std::cerr << "Failed to open client bus: " << strerror(-r) << std::endl;
         return;
     }
-
-    while(take > 1){// Loop to periodically read illuminance sensor value
+    last_work_ts = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    while(worker_running.load()){// Loop to periodically read illuminance sensor value
         
         ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
         if(mfile.is_open()){
@@ -308,8 +349,10 @@ void do_work(){
             mfile.close();
             to_unit16t r = stringToUint16t(line);
             if(r.status == OK){
+                std::cout << "r.status is OK\n";
                 il_value = r.value;
             }else {
+                std::cout << "ERROR:" << r.status << " set default value in il_value to 0" << std::endl;
                 cerr << "ERROR: " << r.status << " set default value in il_value to 0" << '\n';
                 il_value = 0;
             }
@@ -322,7 +365,7 @@ void do_work(){
         const uint8_t thr = conf.changeThreshold.load();
 
         if (il > old + thr || il < old - thr) {
-            if (count_check.load() >=conf.validationCount.load()) {
+            if (count_check.load() >= conf.validationCount.load()) {
                 old_value = il;
 
                 // Готовим чистые error/reply перед каждым вызовом
@@ -363,11 +406,10 @@ void do_work(){
             std::cout << "OLD VALUE" << std::endl;
         }
         
-        take = take.load()-1;
 
         std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
-        std::cout << "TAKE:" << static_cast<int>(take.load()) << std::endl;
         this_thread::sleep_for(chrono::milliseconds(conf.loopDelayMs));// Wait 0.5 second before next read
+        last_work_ts = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     }
     sd_bus_unref(client_bus);// Закрываем клиентскую шину воркера
 
@@ -376,9 +418,19 @@ void do_work(){
 int main(int argc, char *argv[]){
     if(argc > 1){
         CONFIG = argv[1];
+        std::cout << "argv[1] " << argv[1] << std::endl;
     }
     
-    std::cout << "START: ABI" << std::endl;
+    std::cout << "START: ABI V0.2" << std::endl;
+
+    //Hangup detected on controlling terminal or death of controlling process
+    std::signal(SIGHUP, signal_handler);
+    //Ctr+C
+    std::signal(SIGINT, signal_handler);
+    //Termination signal
+    std::signal(SIGTERM, signal_handler);
+    //
+    std::signal(SIGUSR1, signal_handler);
 
     uint8_t itry = 0;
     while (!conf.loadFromIni(CONFIG) && itry < 3)
@@ -421,16 +473,24 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-    auto w = std::async(std::launch::async, do_work);
-    
-    while(take > 1){
+    future<void> w = std::async(std::launch::async, do_work);
+
+    while(main_running.load()){
         r = sd_bus_process(bus, nullptr);//проверяем наличие сообщений на D-Bus
-        if (r > 0) continue;//если есть сообщение, оно уже обработано >> сразу к следующей итерации
+        if (r > 0) continue;//если есть сообщение, оно уже обработан > 1о >> сразу к следующей итерации
         //ждем сообщения
-        r = sd_bus_wait(bus, (uint64_t)-1);
+        r = sd_bus_wait(bus, 250000);//250ms
         if (r < 0) { //проверяем наличие ошибок
             std::cerr << "Failed to wait on bus: " << strerror(-r) << std::endl;
             break;
+        }
+
+        auto now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        
+        std::cout << "now: " << now <<  " last_work_ts:" << last_work_ts.load() << std::endl;
+        
+        if(now - last_work_ts.load() > 5){
+            std::cout << "check W" << std::endl;
         }
     }
 
