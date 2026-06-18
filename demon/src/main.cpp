@@ -293,7 +293,7 @@ static int method_give_active_win(sd_bus_message *msg, void *, sd_bus_error *err
         }
     );
 
-    std::cout << str << std::endl;
+    std::cout << "==========" << str << "==========" << std::endl;
 
     return sd_bus_reply_method_return(msg, nullptr);
 }
@@ -440,6 +440,9 @@ int main(int argc, char *argv[]){
             this_thread::sleep_for(chrono::milliseconds(250));
         }else {
             std::cout << "Create default aib.conf!\n";
+            if(conf.saveToIniAtomic(CONFIG)){
+                std::cout << "Successful save config (MAIN).\n";
+            }else  std::cout << "Failed save config (MAIN).\n";        
             break;
         }
         itry++;
@@ -497,7 +500,7 @@ int main(int argc, char *argv[]){
     sd_bus_slot_unref(slot);
     sd_bus_unref(bus);
 
-    if(conf.saveToIni(CONFIG)){
+    if(conf.saveToIniAtomic(CONFIG)){
         std::cout << "Successful save config (MAIN).\n";
     }else  std::cout << "Failed save config (MAIN).\n";
 

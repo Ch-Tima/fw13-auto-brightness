@@ -45,23 +45,6 @@ bool Config::loadFromIni(const std::string& filename){
     return true;
 }
 
-bool Config::saveToIni(const std::string& filename){
-    std::ofstream file(filename);
-    if (!file.is_open()) return false;
-
-    file << "[tuning]\n";
-    file << "changeThreshold=" << (int)changeThreshold.load() << "\n";
-    file << "validationCount=" << (int)validationCount.load() << "\n";
-    file << "loopDelayMs=" << (int)loopDelayMs.load() << "\n\n";
-
-    file << "[brakePoints]\n";
-    for(int i = 0; i < brakePoints.size(); i++){
-        std::lock_guard<std::mutex> lock(brakePointsMutex);
-        file << "brakePoints" << i << "=" << brakePoints[i].x << ',' << brakePoints[i].y << "\n";
-    }
-    return true;
-}
-
 bool Config::saveToIniAtomic(const std::string& filename) {
     std::lock_guard<std::mutex> lock(saveMutex); // защита от параллельных вызовов
     std::string tmpFile = filename + ".tmp";
@@ -78,6 +61,12 @@ bool Config::saveToIniAtomic(const std::string& filename) {
         for(int i = 0; i < brakePoints.size(); i++){
             std::lock_guard<std::mutex> lock(brakePointsMutex);
             file << "brakePoints" << i << "=" << brakePoints[i].x << ',' << brakePoints[i].y << "\n";
+        }
+
+        file << "\n[exapps]\n";
+        for(int i = 0; i < exApps.size(); i++){
+            std::lock_guard<std::mutex> lock(exappsMutex);
+            file << "app" << i << "=" << exApps[i].title << ',' << (int)exApps[i].level << "\n";
         }
 
         file.flush();//выталкиваем из буфера C++ в ОС

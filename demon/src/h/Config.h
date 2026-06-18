@@ -32,9 +32,10 @@ struct Config
     std::atomic<uint8_t> validationCount{3};
     std::atomic<uint16_t> loopDelayMs {500};
 
+    std::mutex exappsMutex;
     std::vector<ExApp> exApps{
         {
-            "minecraft",
+            "code",
             100
         }
     };
