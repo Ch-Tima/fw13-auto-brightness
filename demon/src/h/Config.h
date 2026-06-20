@@ -31,12 +31,13 @@ struct Config
     std::atomic<uint16_t> changeThreshold{50};
     std::atomic<uint8_t> validationCount{3};
     std::atomic<uint16_t> loopDelayMs {500};
+    std::atomic<uint16_t> beforChangeExAppDelayMs {1500};
 
     std::mutex exappsMutex;
     std::vector<ExApp> exApps{
         {
             "code",
-            100
+            10000
         }
     };
 

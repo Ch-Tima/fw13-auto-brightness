@@ -13,9 +13,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-struct ExApp
+#include <iostream>
+#include <string>
+#include <cmath>
+#include <vector>
+#include <future>
+#include <csignal>
+#include <algorithm>
+
+
+#define OK 0
+#define INVALID_ARG 1
+#define OUT_OF_RANGE 2
+
+// Structure to hold conversion result: value and status
+struct to_unit16t
 {
-    std::string title;
-    uint16_t level;
+    uint16_t value = 0;
+    uint8_t status = 0;
 };
- 
+
+// Converts a string to uint16_t with error handling
+to_unit16t h_stringToUint16t(std::string s);
+
+void h_toupper(std::string *out);
+
+bool h_equal_content(std::string v1, std::string v2);

@@ -9,6 +9,7 @@ pkg_check_modules(SYSTEMD REQUIRED libsystemd)
 set(SOURCES
     src/main.cpp
     src/cpp/Config.cpp
+    src/cpp/Helper.cpp
 )
 
 set(HEADERS

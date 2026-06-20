@@ -25,6 +25,7 @@ bool Config::loadFromIni(const std::string& filename){
 
     changeThreshold = reader.GetInteger("tuning", "changeThreshold", 50);
     validationCount = reader.GetInteger("tuning", "validationCount", 3);
+    beforChangeExAppDelayMs = reader.GetInteger("tuning", "beforChangeExAppDelayMs", 1000);
     loopDelayMs = reader.GetInteger("tuning", "loopDelayMs", 500);
     
     {
@@ -55,6 +56,7 @@ bool Config::saveToIniAtomic(const std::string& filename) {
         file << "[tuning]\n";
         file << "changeThreshold=" << (int)changeThreshold.load() << "\n";
         file << "validationCount=" << (int)validationCount.load() << "\n";
+        file << "beforChangeExAppDelayMs=" << (int)beforChangeExAppDelayMs.load() << "\n";
         file << "loopDelayMs=" << (int)loopDelayMs.load() << "\n\n";
 
         file << "[brakePoints]\n";
@@ -94,9 +96,11 @@ bool Config::createDefault(const std::string& filename){
     std::ofstream file(filename);
     if (!file.is_open()) return false;
     file << "[tuning]\n";
-    file << "changeThreshold=50\n";
+    file << "changeThreshold=25\n";
     file << "validationCount=3\n";
+    file << "beforChangeExAppDelayMs=50\n";
     file << "loopDelayMs=500\n\n";
+    
     file << "[brakePoints]\n";
     file << "brakePoints0=0,10000\n";
     file << "brakePoints1=4059,10000\n";

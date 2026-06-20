@@ -22,51 +22,25 @@
 #include <vector>
 #include <future>
 #include <mutex>
-#include <algorithm>
 
 #include "h/Config.h"
+#include "h/Helper.h"
+#include "h/vec2_u16.h"
 
 #include <systemd/sd-bus.h>
 #include <systemd/sd-device.h>
 
 #include <csignal>
 
-#include "h/vec2_u16.h"
 
 using namespace std;
 
-#define OK 0
-#define INVALID_ARG 1
-#define OUT_OF_RANGE 2
-
 static string CONFIG = "aib.conf";
-
-// Structure to hold conversion result: value and status
-struct to_unit16t
-{
-    uint16_t value = 0;
-    uint8_t status = 0;
-};
 
 struct AsyncData {
     sd_bus_message *msg;
 };
 
-// Converts a string to uint16_t with error handling
-to_unit16t stringToUint16t(string s){
-    to_unit16t r;
-    try{
-        int val = std::stoi(s);
-        if(val >= 0 && val <= UINT16_MAX)
-            r.value = val;
-        else r.status = OUT_OF_RANGE;
-    }catch(std::invalid_argument const& ex){
-        r.status = INVALID_ARG;//Bad Request
-    }catch (std::out_of_range const& ex){
-        r.status = INVALID_ARG;//Range Not Satisfiable
-    }
-    return r;
-}
 
 static Config conf;
 static atomic<bool> main_running{true};
@@ -75,7 +49,11 @@ static atomic<int64_t> last_work_ts{0};
 static atomic<uint8_t> count_check{0};
 static atomic<uint16_t> old_value{UINT16_MAX};// Illuminance sensor old value
 static atomic<uint16_t> il_value{0};// Illuminance sensor value
-//static atomic<ExApp> exAppNow{};
+//ExApp
+std::mutex exappsMutex;
+static ExApp exAppNow; //worker r-- | dbus -w-
+static std::chrono::steady_clock::time_point pendingTimeExApp;
+static  atomic<bool>hasPending{false};
 
 uint16_t cal(double mX){
     std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
@@ -273,6 +251,10 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) 
 
 static int method_give_active_win(sd_bus_message *msg, void *, sd_bus_error *err){
 
+    if(hasPending.load()){
+        hasPending = false;
+    }
+
     const char *val = nullptr;
     int r = sd_bus_message_read(msg, "s", &val);
 
@@ -280,20 +262,17 @@ static int method_give_active_win(sd_bus_message *msg, void *, sd_bus_error *err
         return r;
     }
 
-    std::string str = val;
+    std::cout << "==========" << val << "==========" << std::endl;
 
-    std::cout << str << std::endl;
-        
-    std::transform(
-        str.begin(), 
-        str.end(), 
-        str.begin(),
-        [](unsigned char c) {
-            return std::toupper(c);
+    for (const ExApp& item : conf.exApps){
+        if(h_equal_content(val, item.title)){
+            std::lock_guard<std::mutex> lock(exappsMutex);
+            exAppNow = item;//set new ExApp now
+            pendingTimeExApp = std::chrono::steady_clock::now();//save time points
+            hasPending = true;//pending
+            break;
         }
-    );
-
-    std::cout << "==========" << str << "==========" << std::endl;
+    }
 
     return sd_bus_reply_method_return(msg, nullptr);
 }
@@ -327,6 +306,43 @@ void signal_handler(int signal){
     worker_running = false;
 }
 
+int sendValueToBrightnessControl(sd_bus *client_bus, const uint16_t level){
+
+    int r;
+
+    // Готовим чистые error/reply перед каждым вызовом
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = nullptr;
+
+    // используем client_bus!
+    r = sd_bus_call_method(
+         client_bus,
+         "org.kde.Solid.PowerManagement",
+         "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+         "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
+         "setBrightnessSilent",
+         &error,
+         &reply,
+         "i",
+         (int)level  // сигнатура "i" → int
+     );
+
+     if (r < 0) {
+         std::cerr << "Error calling setBrightnessSilent: "
+                   << strerror(-r) << " ("
+                   << (error.message ? error.message : "no error msg")
+                   << ")\n";
+     }
+
+     if (reply) {
+         sd_bus_message_unref(reply);
+         reply = nullptr;
+     }
+     sd_bus_error_free(&error);
+
+     return r;
+}
+
 void do_work(){
     //do_work работа над получением in_illuminance_raw и изменения яркости экрана 
     std::cout << "START main loop" << std::endl;
@@ -343,13 +359,14 @@ void do_work(){
     last_work_ts = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     while(worker_running.load()){// Loop to periodically read illuminance sensor value
         
+
         ifstream mfile("/sys/bus/iio/devices/iio:device0/in_illuminance_raw");
         if(mfile.is_open()){
             getline(mfile, line);
             mfile.close();
-            to_unit16t r = stringToUint16t(line);
+            to_unit16t r = h_stringToUint16t(line);
             if(r.status == OK){
-                std::cout << "r.status is OK\n";
+                //std::cout << "r.status is OK\n";
                 il_value = r.value;
             }else {
                 std::cout << "ERROR:" << r.status << " set default value in il_value to 0" << std::endl;
@@ -357,46 +374,22 @@ void do_work(){
                 il_value = 0;
             }
         }
-        else std::cerr << "Unable to open file" << std::endl;;
+        else std::cerr << "Unable to open file" << std::endl;
 
 
         const uint16_t il = il_value.load();
         const uint16_t old = old_value.load();
         const uint8_t thr = conf.changeThreshold.load();
 
-        if (il > old + thr || il < old - thr) {
+        //если hasPending: true и прошле некое время указоное в conf.beforChangeExAppDelayMs то устонавливаем кастомную яркость указаную в exAppNow
+        if(hasPending && ((std::chrono::steady_clock::now() - pendingTimeExApp) > std::chrono::milliseconds(conf.beforChangeExAppDelayMs.load()))){
+            sendValueToBrightnessControl(client_bus, exAppNow.level);
+            old_value = UINT16_MAX;// чтобы при исчезновение exAppNow пересчитать яркость
+        }else if (il > old + thr || il < old - thr) {
             if (count_check.load() >= conf.validationCount.load()) {
                 old_value = il;
 
-                // Готовим чистые error/reply перед каждым вызовом
-                sd_bus_error error = SD_BUS_ERROR_NULL;
-                sd_bus_message *reply = nullptr;
-
-                // используем client_bus!
-                r = sd_bus_call_method(
-                    client_bus,
-                    "org.kde.Solid.PowerManagement",
-                    "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
-                    "org.kde.Solid.PowerManagement.Actions.BrightnessControl",
-                    "setBrightnessSilent",
-                    &error,
-                    &reply,
-                    "i",
-                    (int)cal(il)  // сигнатура "i" → int
-                );
-
-                if (r < 0) {
-                    std::cerr << "Error calling setBrightnessSilent: "
-                              << strerror(-r) << " ("
-                              << (error.message ? error.message : "no error msg")
-                              << ")\n";
-                }
-
-                if (reply) {
-                    sd_bus_message_unref(reply);
-                    reply = nullptr;
-                }
-                sd_bus_error_free(&error);
+                sendValueToBrightnessControl(client_bus, cal(il));
 
                 count_check = 0;
             } else {
@@ -407,7 +400,7 @@ void do_work(){
         }
         
 
-        std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
+        //std::cout << "il_lum:" << static_cast<int>(il_value.load()) << std::endl;
         this_thread::sleep_for(chrono::milliseconds(conf.loopDelayMs));// Wait 0.5 second before next read
         last_work_ts = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
     }
@@ -490,7 +483,7 @@ int main(int argc, char *argv[]){
 
         auto now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
         
-        std::cout << "now: " << now <<  " last_work_ts:" << last_work_ts.load() << std::endl;
+        //std::cout << "now: " << now <<  " last_work_ts:" << last_work_ts.load() << std::endl;
         
         if(now - last_work_ts.load() > 5){
             std::cout << "check W" << std::endl;
