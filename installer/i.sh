@@ -95,6 +95,18 @@ done < d.desktop
 
 echo "$FILE_DESKTOP" | sudo tee /usr/share/applications/autobrightness.desktop > /dev/null
 
+echo "Build and install ABI_GetActWinEnabled script"
+
+plasma_exec() {
+    sudo -u "$REAL_USER" \
+    env DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_ID/bus" \
+    "$@"
+}
+
+plasma_exec kpackagetool6 --type=KWin/Script -i kwin_active_window
+plasma_exec kwriteconfig6 --file kwinrc --group Plugins --key ABI_GetActWinEnabled true
+plasma_exec qdbus6 org.kde.KWin /KWin reconfigure
+
 echo "END :)"
 
 exit 0

@@ -13,6 +13,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+//=======V0.2a=======//
+
+#define APP_V "0.2a"
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -31,7 +35,6 @@
 #include <systemd/sd-device.h>
 
 #include <csignal>
-
 
 using namespace std;
 
@@ -53,7 +56,7 @@ static atomic<uint16_t> il_value{0};// Illuminance sensor value
 std::mutex exappsMutex;
 static ExApp exAppNow; //worker r-- | dbus -w-
 static std::chrono::steady_clock::time_point pendingTimeExApp;
-static  atomic<bool>hasPending{false};
+static atomic<bool>hasPending{false};
 
 uint16_t cal(double mX){
     std::lock_guard<std::mutex> lock(conf.brakePointsMutex);
@@ -251,10 +254,6 @@ static int method_set_brake_points(sd_bus_message *msg, void *, sd_bus_error *) 
 
 static int method_give_active_win(sd_bus_message *msg, void *, sd_bus_error *err){
 
-    if(hasPending.load()){
-        hasPending = false;
-    }
-
     const char *val = nullptr;
     int r = sd_bus_message_read(msg, "s", &val);
 
@@ -262,17 +261,22 @@ static int method_give_active_win(sd_bus_message *msg, void *, sd_bus_error *err
         return r;
     }
 
-    std::cout << "==========" << val << "==========" << std::endl;
-
-    for (const ExApp& item : conf.exApps){
-        if(h_equal_content(val, item.title)){
-            std::lock_guard<std::mutex> lock(exappsMutex);
-            exAppNow = item;//set new ExApp now
-            pendingTimeExApp = std::chrono::steady_clock::now();//save time points
-            hasPending = true;//pending
-            break;
+    if(h_equal_content(exAppNow.title, val)){
+        hasPending = true;
+    }else if(hasPending.load()){
+        hasPending = false;
+    }else{
+        for (const ExApp& item : conf.exApps){
+            if(h_equal_content(val, item.title)){
+                std::lock_guard<std::mutex> lock(exappsMutex);
+                exAppNow = item;//set new ExApp now
+                pendingTimeExApp = std::chrono::steady_clock::now();//save time points
+                hasPending = true;//pending
+                break;
+            }
         }
     }
+
 
     return sd_bus_reply_method_return(msg, nullptr);
 }
@@ -414,7 +418,7 @@ int main(int argc, char *argv[]){
         std::cout << "argv[1] " << argv[1] << std::endl;
     }
     
-    std::cout << "START: ABI V0.2" << std::endl;
+    std::cout << "START: ABI " << APP_V << std::endl;
 
     //Hangup detected on controlling terminal or death of controlling process
     std::signal(SIGHUP, signal_handler);

@@ -99,10 +99,12 @@ bool Config::createDefault(const std::string& filename){
     file << "changeThreshold=25\n";
     file << "validationCount=3\n";
     file << "beforChangeExAppDelayMs=50\n";
-    file << "loopDelayMs=500\n\n";
+    file << "loopDelayMs=500\n";
     
-    file << "[brakePoints]\n";
+    file << "\n[brakePoints]\n";
     file << "brakePoints0=0,10000\n";
     file << "brakePoints1=4059,10000\n";
+    file << "\n[exapps]\n";
+
     return true;
 }

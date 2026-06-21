@@ -37,6 +37,10 @@ struct Config
     std::vector<ExApp> exApps{
         {
             "code",
+            8000
+        },
+        {
+            "gimp",
             10000
         }
     };
